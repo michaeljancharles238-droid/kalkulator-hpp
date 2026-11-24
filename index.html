@@ -89,10 +89,10 @@ body::before {
 }
 
 .wrap {
-  max-width:1080px; margin:0 auto;
+  max-width:1200px; margin:0 auto;
   padding-left:max(16px, env(safe-area-inset-left, 0px));
   padding-right:max(16px, env(safe-area-inset-right, 0px));
-  padding-block:0 72px;
+  padding-block:0 88px;
 }
 
 /* ===== HEADER ===== */
@@ -101,7 +101,7 @@ body::before {
   background:var(--kertas); border-bottom:1px solid var(--garis);
 }
 .topbar-in {
-  max-width:1080px; margin:0 auto; display:flex; align-items:center; gap:14px;
+  max-width:1200px; margin:0 auto; display:flex; align-items:center; gap:14px;
   padding-left:max(16px, env(safe-area-inset-left, 0px));
   padding-right:max(16px, env(safe-area-inset-right, 0px));
   padding-block:12px;
@@ -137,22 +137,38 @@ body::before {
 }
 
 /* ===== KARTU & TIPOGRAFI ===== */
-.sec { margin-block:26px 0; }
-.sec-head { display:flex; align-items:baseline; justify-content:space-between; gap:14px; margin-bottom:13px; flex-wrap:wrap; }
-h1 { font-size:22px; font-weight:800; letter-spacing:-.03em; margin:0; text-wrap:balance; }
+.sec { margin-block:28px 0; }
+.sec-head { display:flex; align-items:baseline; justify-content:space-between; gap:14px; margin-bottom:15px; flex-wrap:wrap; }
+h1 { font-size:23px; font-weight:800; letter-spacing:-.03em; margin:0; text-wrap:balance; }
 h2 { font-size:15px; font-weight:700; letter-spacing:-.015em; margin:0; }
 h3 { font-size:13px; font-weight:700; letter-spacing:-.01em; margin:0; }
 .eyebrow { font-size:10.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--tinta-3); }
 .sub { font-size:13px; color:var(--tinta-2); line-height:1.6; }
-.card { background:var(--kartu); border:1px solid var(--garis); border-radius:16px; padding:18px; }
-.card + .card { margin-top:14px; }
+.card { background:var(--kartu); border:1px solid var(--garis); border-radius:18px; padding:20px; }
+.card + .card { margin-top:16px; }
+
+/* Di layar lebar, satu kolom panjang membuang ruang samping dan memaksa menggulir
+   jauh. Dua kartu grafik diletakkan berdampingan, dan jaraknya dilonggarkan. */
+.dua { display:grid; gap:16px; margin-top:16px; }
+.dua > .card + .card { margin-top:0; }
+.dua + .card, .tiles + .card { margin-top:16px; }
+@media (min-width:940px) {
+  .dua { grid-template-columns:repeat(2, minmax(0,1fr)); }
+  .dua + .card, .tiles + .card { margin-top:18px; }
+  .sec { margin-block:36px 0; }
+  .sec-head { margin-bottom:18px; }
+  h1 { font-size:26px; }
+  .card { padding:24px; }
+  .card + .card { margin-top:18px; }
+}
 
 /* ===== PETAK STATISTIK ===== */
-.tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(170px,1fr)); gap:12px; }
-.tile { background:var(--kartu); border:1px solid var(--garis); border-radius:14px; padding:15px; min-width:0; }
+.tiles { display:grid; grid-template-columns:repeat(auto-fit, minmax(180px,1fr)); gap:14px; }
+.tile { background:var(--kartu); border:1px solid var(--garis); border-radius:16px; padding:18px; min-width:0; }
 .tile .k { font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--tinta-3); }
-.tile .v { font-size:25px; font-weight:800; letter-spacing:-.03em; margin-top:7px; line-height:1.1; overflow-wrap:anywhere; }
-.tile .d { font-size:12px; color:var(--tinta-2); margin-top:4px; line-height:1.45; }
+.tile .v { font-size:27px; font-weight:800; letter-spacing:-.03em; margin-top:9px; line-height:1.1; overflow-wrap:anywhere; }
+.tile .d { font-size:12px; color:var(--tinta-2); margin-top:5px; line-height:1.45; }
+@media (min-width:940px) { .tile { padding:20px; } .tile .v { font-size:29px; } }
 .tile.ok .v { color:var(--baik-tinta); }
 .tile.warn .v { color:var(--hati-tinta); }
 .tile.bad .v { color:var(--kritis-tinta); }
@@ -213,6 +229,20 @@ select.inp { appearance:none; padding-right:26px;
   display:grid; grid-template-columns:minmax(0,1fr) 92px 74px 108px 34px;
   gap:8px; align-items:center;
 }
+/* Di layar lebar, kolom angka dilebarkan supaya tidak terlihat seperti kotak kecil
+   di samping kolom nama yang sangat panjang. */
+@media (min-width:760px) {
+  /* Hanya di tab Bahan — di sana barisnya selebar halaman. Di editor produk
+     barisnya berada dalam kolom sempit, jadi nama bahan yang perlu ruang. */
+  #v-bahan .row-h, #v-bahan .row-i { grid-template-columns:minmax(0,1fr) 118px 94px 142px 40px; gap:12px; }
+  .row-i { padding:10px 12px; }
+}
+/* Sisi kiri untuk mengisi, sisi kanan untuk melihat hasilnya — tidak perlu
+   menggulir jauh setiap kali mengubah satu angka. */
+.editor-grid { display:grid; gap:16px; margin-top:16px; align-items:start; }
+@media (min-width:1040px) {
+  .editor-grid { grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:18px; margin-top:18px; }
+}
 .row-h { font-size:10.5px; font-weight:700; letter-spacing:.07em; text-transform:uppercase; color:var(--tinta-3); padding:0 2px; }
 .row-h span:nth-child(n+2) { text-align:right; }
 .row-h span:nth-child(3) { text-align:left; }
@@ -264,9 +294,9 @@ tbody tr:hover { background:var(--kartu-2); }
 .legend .it b { color:var(--tinta); font-weight:600; font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:11.5px; }
 
 /* ===== KARTU PRODUK ===== */
-.pgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(230px,1fr)); gap:12px; }
+.pgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(268px,1fr)); gap:14px; }
 .pcard {
-  background:var(--kartu); border:1px solid var(--garis); border-radius:14px; padding:15px;
+  background:var(--kartu); border:1px solid var(--garis); border-radius:16px; padding:18px;
   text-align:left; width:100%; display:flex; flex-direction:column; gap:10px; transition:border-color .15s, transform .1s;
 }
 .pcard:hover { border-color:var(--garis-kuat); }
@@ -663,8 +693,8 @@ function renderRingkasan() {
       return { label:r.p.nama, emoji:r.p.emoji, value:r.h.margin, color:warnaStatus(st.k), text:pct(r.h.margin),
                chip:`<span class="chip ${st.k}"><span class="dot"></span>${st.t}</span>` };
     });
-    grafik = `
-      <div class="card" style="margin-top:14px">
+    grafik = `<div class="dua">
+      <div class="card">
         <div class="sec-head" style="margin-bottom:16px">
           <div><h2>Laba per porsi</h2><p class="sub">Harga jual dikurangi HPP, untuk satu porsi.</p></div>
         </div>
@@ -676,7 +706,8 @@ function renderRingkasan() {
         </div>
         ${batangHTML(marginItems, { target:num(S.setel.targetMargin),
             caption:`<i></i> garis putus-putus = target ${pct(S.setel.targetMargin)}` })}
-      </div>`;
+      </div>
+    </div>`;
   }
 
   const tabel = `<div class="card">
@@ -792,7 +823,7 @@ function barisBahanHTML(it, i) {
 
 function barisOpsHTML(o, i) {
   const biaya = biayaOps(o);
-  const modeOpt = [['rp','Jumlah rupiah'],['listrik','Listrik (watt × menit)'],['jam','Tenaga kerja (per jam)']]
+  const modeOpt = [['rp','Rupiah'],['listrik','Listrik'],['jam','Tenaga kerja']]
     .map(([k,v]) => `<option value="${k}"${k===o.mode?' selected':''}>${v}</option>`).join('');
   let isian;
   if (o.mode === 'listrik') {
@@ -921,6 +952,8 @@ function editorHTML(p) {
       </div>
     </div>
 
+    <div class="editor-grid">
+    <div class="kolom">
     <div class="card">
       <div class="sec-head" style="margin-bottom:14px">
         <div><h2>Bahan baku</h2><p class="sub">Harga diambil dari pustaka bahan. Ubah harga sekali, semua produk ikut.</p></div>
@@ -942,8 +975,10 @@ function editorHTML(p) {
         ${(p.ops||[]).map(barisOpsHTML).join('')}
       </div>` : `<div class="empty" style="padding:22px 0"><b>Belum ada biaya operasional</b>Tanpa ini, HPP terlihat lebih murah dari kenyataan.</div>`}
     </div>
+    </div>
 
-    <div id="hasil">${hasilHTML(p, h)}</div>
+    <div class="kolom" id="hasil">${hasilHTML(p, h)}</div>
+    </div>
   </div>`;
 }
 
@@ -957,7 +992,7 @@ function renderBahan() {
   Object.values(S.produk).forEach(p => (p.bahan||[]).forEach(it => { dipakai[it.bahanId] = (dipakai[it.bahanId]||0) + 1; }));
 
   const isi = semua.length ? `<div class="rows">
-      <div class="row-h" style="grid-template-columns:minmax(0,1fr) 92px 74px 108px 34px">
+      <div class="row-h">
         <span>Nama bahan</span><span>Isi kemasan</span><span>Satuan</span><span>Harga kemasan</span><span></span></div>
       ${semua.map(b => `<div class="row-i" data-bahan="${esc(b.id)}">
         <span class="field" style="min-width:0">
@@ -1286,7 +1321,7 @@ document.addEventListener('focusout', e => {
    =================================================================== */
 const KUNCI = 'w21-hpp-v1';
 /* Naikkan bersamaan dengan CACHE di sw.js setiap kali berkas ini berubah. */
-const VERSI = '5';
+const VERSI = '6';
 const BENIH = {
 "bahan": {
 "b-milo": {
