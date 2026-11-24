@@ -1,0 +1,17 @@
+{
+  "name": "Kalkulator HPP Warung",
+  "short_name": "HPP",
+  "description": "Hitung harga pokok produksi per porsi, usulan harga jual, dan bandingkan margin antar produk.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f7f5f1",
+  "theme_color": "#f7f5f1",
+  "lang": "id",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
