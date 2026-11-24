@@ -9,7 +9,7 @@
    karena isinya tidak berubah dan memuatnya dari cache jauh lebih cepat.
 
    Naikkan nomor versi di bawah setiap kali index.html berubah. */
-const CACHE = 'kalkulator-hpp-v9';
+const CACHE = 'kalkulator-hpp-v10';
 
 const ASET = [
   './',
