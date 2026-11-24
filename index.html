@@ -273,25 +273,34 @@ select.inp { appearance:none; padding-right:26px;
 
 .hero-num { font-size:34px; font-weight:800; letter-spacing:-.035em; line-height:1.05; font-family:var(--mono); font-variant-numeric:tabular-nums; }
 
-/* ===== BASIS RESEP: bahan ditulis untuk 1 porsi atau 1 batch ===== */
-.basis-wrap { margin-top:16px; padding-top:15px; border-top:1px dashed var(--garis-kuat); }
-.basis-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:9px; flex-wrap:wrap; }
-.basis-efek {
-  font-size:10.5px; font-weight:700; font-family:var(--mono); font-variant-numeric:tabular-nums;
-  color:var(--tinta-3); background:var(--kartu-2); border-radius:7px; padding:3px 8px; white-space:nowrap;
+/* ===== BARIS SETELAN PRODUK: porsi · harga jual · basis resep ===== */
+.setup-grid { display:grid; grid-template-columns:1fr; gap:12px; margin-top:14px; align-items:start; }
+@media (min-width:521px) {
+  .setup-grid { grid-template-columns:1fr 1fr; }
+  .setup-grid > .basis-field { grid-column:1/-1; }
 }
-.basis-seg { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-.basis-opt {
-  text-align:left; padding:11px 13px; border-radius:13px; border:1.5px solid var(--garis);
-  background:var(--kartu-2); transition:border-color .15s, background .15s;
+@media (min-width:760px) {
+  .setup-grid { grid-template-columns:minmax(0,1fr) minmax(0,1fr) 186px; }
+  .setup-grid > .basis-field { grid-column:auto; }
 }
-.basis-opt:active { transform:scale(.99); }
-.basis-opt.on { border-color:var(--aksen); background:var(--aksen-lembut); }
-.basis-opt .bj { display:block; font-size:13.5px; font-weight:750; color:var(--tinta); }
-.basis-opt.on .bj { color:var(--aksen-tinta); }
-.basis-opt .bk { display:block; font-size:10.5px; color:var(--tinta-3); line-height:1.45; margin-top:2px; }
-.basis-ket { font-size:11.5px; color:var(--tinta-2); line-height:1.6; margin-top:10px; }
-.basis-ket b { color:var(--tinta); font-weight:700; }
+/* Setelan yang dipilih sekali — sebesar kolom isian, bukan lebih besar. */
+.seg2 {
+  display:grid; grid-template-columns:1fr 1fr; gap:2px; padding:3px;
+  border:1px solid var(--garis-kuat); border-radius:10px; background:var(--kartu-2);
+}
+.seg2 button {
+  padding:8px 4px; border-radius:7px; font-size:12.5px; font-weight:650; line-height:1.4;
+  color:var(--tinta-2); white-space:nowrap; transition:background .15s, color .15s;
+}
+.seg2 button:hover { color:var(--tinta); }
+.seg2 button.on { background:var(--kartu); color:var(--aksen-tinta); box-shadow:var(--bayang); }
+.setup-ket { font-size:11.5px; color:var(--tinta-2); line-height:1.6; margin-top:11px; }
+.setup-ket b { color:var(--tinta); font-weight:700; }
+.setup-efek {
+  display:inline-block; margin-left:7px; font-size:10.5px; font-weight:700;
+  font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap;
+  color:var(--tinta-3); background:var(--kartu-2); border-radius:7px; padding:2px 8px;
+}
 
 /* ===== KARTU "MAU BIKIN BERAPA" ===== */
 .bl-input { display:flex; align-items:center; gap:10px; margin-top:14px; }
@@ -1237,38 +1246,31 @@ function hasilHTML(p, h) {
   </div>` : ''; })()}`;
 }
 
-/* Pemilih basis resep. Ditaruh tepat di bawah kolom porsi karena keduanya
-   saling menentukan: angka porsi tidak ada artinya tanpa tahu bahannya
-   ditulis untuk apa. Akibat memilih ditulis apa adanya, termasuk HPP yang
-   akan keluar kalau basisnya ditukar — supaya tidak perlu coba-coba. */
+/* Pemilih basis resep. Sejajar dengan kolom porsi karena keduanya saling
+   menentukan: angka porsi tidak ada artinya tanpa tahu bahannya ditulis untuk
+   apa. Dibuat sekecil kolom isian biasa — ini setelan yang dipilih sekali,
+   bukan bagian yang dikerjakan tiap hari. */
 function basisHTML(p, h) {
   const basis = h.basis;
-  const lawan = Object.assign({}, p, { basis: basis === 'porsi' ? 'batch' : 'porsi' });
-  const hl = hitung(lawan);
-  const porsi = h.porsi;
-  const adaBahan = (p.bahan || []).length > 0;
-
-  const tombol = (nilai, judul, ket) => `
-    <button class="basis-opt${basis === nilai ? ' on' : ''}" data-basis="${nilai}"
-            aria-pressed="${basis === nilai}">
-      <span class="bj">${judul}</span>
-      <span class="bk">${ket}</span>
-    </button>`;
-
-  const beda = adaBahan && porsi > 1 && Math.round(hl.hpp) !== Math.round(h.hpp);
-  return `<div class="basis-wrap">
-    <div class="basis-head">
-      <span class="lbl" style="margin:0">Angka bahan di bawah ditulis untuk</span>
-      ${beda ? `<span class="basis-efek">ditukar → HPP ${rp(hl.hpp)}</span>` : ''}
+  const tombol = (nilai, judul) => `
+    <button class="${basis === nilai ? 'on' : ''}" data-basis="${nilai}" aria-pressed="${basis === nilai}">${judul}</button>`;
+  return `<div class="field basis-field">
+    <label class="lbl">Bahan ditulis untuk</label>
+    <div class="seg2" role="group" aria-label="Basis penulisan bahan">
+      ${tombol('porsi', '1 porsi')}${tombol('batch', '1 batch')}
     </div>
-    <div class="basis-seg">
-      ${tombol('porsi', '1 porsi', 'bahan dikali jumlah porsi')}
-      ${tombol('batch', '1 batch', 'biaya dibagi jumlah porsi')}
-    </div>
-    <p class="basis-ket">${basis === 'porsi'
-      ? `Tulis takaran untuk <b>satu porsi</b>. Ubah jumlah porsi jadi, kebutuhan bahan ikut naik sendiri dan HPP per porsi tetap.`
-      : `Tulis takaran untuk <b>satu batch penuh</b>. Ubah jumlah porsi jadi, biaya batch dibagi lebih banyak dan HPP per porsi turun.`}</p>
   </div>`;
+}
+
+/* Satu baris penjelasan di bawah baris setelan, lengkap dengan akibat kalau
+   basisnya ditukar — supaya tidak perlu menekan dulu untuk tahu hasilnya. */
+function basisKetHTML(p, h) {
+  const lawan = hitung(Object.assign({}, p, { basis: h.basis === 'porsi' ? 'batch' : 'porsi' }));
+  const beda = (p.bahan || []).length > 0 && h.porsi > 1 && Math.round(lawan.hpp) !== Math.round(h.hpp);
+  return `<p class="setup-ket">${h.basis === 'porsi'
+      ? `Takaran di bawah berlaku untuk <b>satu porsi</b> — ubah jumlah porsi jadi, kebutuhan bahan ikut naik sendiri dan HPP per porsi tetap.`
+      : `Takaran di bawah berlaku untuk <b>satu batch penuh</b> — ubah jumlah porsi jadi, biaya batch dibagi lebih banyak dan HPP per porsi turun.`}
+    ${beda ? `<span class="setup-efek">ditukar → HPP ${rp(lawan.hpp)}</span>` : ''}</p>`;
 }
 
 function editorHTML(p) {
@@ -1288,13 +1290,14 @@ function editorHTML(p) {
         <div class="field"><label class="lbl" for="e-nama">Nama produk</label>
           <input class="inp" id="e-nama" data-p="nama" value="${esc(p.nama||'')}" placeholder="Contoh: Es Kepal Milo"></div>
       </div>
-      <div class="grid2" style="margin-top:14px">
-        <div class="field"><label class="lbl" for="e-porsi">Jumlah porsi jadi per batch</label>
+      <div class="setup-grid">
+        <div class="field"><label class="lbl" for="e-porsi">Porsi jadi per batch</label>
           <input class="inp n" id="e-porsi" data-p="porsi" inputmode="decimal" value="${esc(fmtN(num(p.porsi),0))}" placeholder="0"></div>
         <div class="field"><label class="lbl" for="e-jual">Harga jual per porsi</label>
           <input class="inp n" id="e-jual" data-p="hargaJual" inputmode="decimal" value="${esc(fmtN(num(p.hargaJual),0))}" placeholder="0"></div>
+        ${basisHTML(p, h)}
       </div>
-      ${basisHTML(p, h)}
+      ${basisKetHTML(p, h)}
     </div>
 
     <div class="editor-grid">
@@ -1413,8 +1416,8 @@ function renderHasil() {
   // Label kolom ikut basis, dan akibat menukar basis dihitung ulang.
   const kolom = document.querySelector('#editor .row-h span:nth-child(2)');
   if (kolom) kolom.textContent = h.basis === 'porsi' ? 'Per porsi' : 'Per batch';
-  const bw = document.querySelector('#editor .basis-wrap');
-  if (bw) bw.outerHTML = basisHTML(p, h);
+  const bk = document.querySelector('#editor .setup-ket');
+  if (bk) bk.outerHTML = basisKetHTML(p, h);
   document.querySelectorAll('#editor [data-ops]').forEach(el => {
     const i = +el.dataset.ops, o = (p.ops||[])[i];
     if (!o) return;
@@ -1695,7 +1698,7 @@ document.addEventListener('focusout', e => {
    =================================================================== */
 const KUNCI = 'w21-hpp-v1';
 /* Naikkan bersamaan dengan CACHE di sw.js setiap kali berkas ini berubah. */
-const VERSI = '8';
+const VERSI = '9';
 const BENIH = {
 "bahan": {
 "b-milo": {
