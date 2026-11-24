@@ -352,6 +352,7 @@ tbody tr:hover { background:var(--kartu-2); }
       <button role="tab" data-tab="produk" aria-selected="false">Produk</button>
       <button role="tab" data-tab="bahan" aria-selected="false">Bahan</button>
     </div>
+    <button class="icon-btn" id="btnSinkron" title="Sinkronisasi" aria-label="Status sinkronisasi"></button>
     <button class="icon-btn" id="btnTema" title="Ganti tema" aria-label="Ganti tema"></button>
     <button class="icon-btn" id="btnSetel" title="Pengaturan" aria-label="Pengaturan">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 9 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1Z"/></svg>
@@ -515,10 +516,24 @@ function periksa(p, h) {
 /* ===================================================================
    PENYIMPANAN — tulis ditunda supaya tidak menyimpan tiap ketukan tombol
    =================================================================== */
-function simpan() { if (S.boleh) jadwalSimpan(); }
-const simpanProduk = () => simpan();
-const simpanBahan  = () => simpan();
-const simpanSetel  = () => simpan();
+/* Catat dokumen mana yang berubah, supaya yang dikirim ke cloud hanya itu —
+   bukan seluruh data setiap kali satu angka diketik. */
+const kotor = { produk:new Set(), bahan:new Set(), setel:false, buangProduk:new Set(), buangBahan:new Set() };
+function simpan(jenis, id) {
+  if (!S.boleh) return;
+  if (jenis === 'produk' && id) kotor.produk.add(id);
+  else if (jenis === 'bahan' && id) kotor.bahan.add(id);
+  else if (jenis === 'setel') kotor.setel = true;
+  jadwalSimpan();
+}
+const simpanProduk = p => simpan('produk', p && p.id);
+const simpanBahan  = b => simpan('bahan',  b && b.id);
+const simpanSetel  = () => simpan('setel');
+function tandaiHapus(jenis, id) {
+  if (jenis === 'produk') { kotor.buangProduk.add(id); kotor.produk.delete(id); }
+  else { kotor.buangBahan.add(id); kotor.bahan.delete(id); }
+  jadwalSimpan();
+}
 
 /* ===================================================================
    KOMPONEN GRAFIK
@@ -967,14 +982,24 @@ function renderBahan() {
 /* ===================================================================
    PENGGAMBARAN UTAMA
    =================================================================== */
+/* Mengganti innerHTML sambil kolom isian sedang fokus akan memicu blur, dan handler
+   blur bisa memanggil render() lagi di tengah render yang belum selesai — DOM-nya pecah.
+   Penjaga ini menolak panggilan bersarang; render terluar yang menyelesaikan tugasnya. */
+let sedangRender = false;
 function render() {
-  document.querySelectorAll('#tabs button').forEach(b =>
-    b.setAttribute('aria-selected', String(b.dataset.tab === S.tab)));
-  ['ringkasan','produk','bahan'].forEach(v => { $('#v-' + v).hidden = (v !== S.tab); });
-  if (S.tab === 'ringkasan') renderRingkasan();
-  else if (S.tab === 'produk') renderProduk();
-  else renderBahan();
-  if (!S.boleh) tempelBanner();
+  if (sedangRender) return;
+  sedangRender = true;
+  try {
+    document.querySelectorAll('#tabs button').forEach(b =>
+      b.setAttribute('aria-selected', String(b.dataset.tab === S.tab)));
+    ['ringkasan','produk','bahan'].forEach(v => { $('#v-' + v).hidden = (v !== S.tab); });
+    if (S.tab === 'ringkasan') renderRingkasan();
+    else if (S.tab === 'produk') renderProduk();
+    else renderBahan();
+    if (!S.boleh) tempelBanner();
+  } finally {
+    sedangRender = false;
+  }
 }
 /* Saat mengetik, hanya bagian hasil yang digambar ulang — kolom isian tidak
    boleh ikut dibuat ulang, karena fokus dan posisi kursor akan hilang. */
@@ -1044,6 +1069,11 @@ function sheetPengaturan() {
   bukaSheet(`
     <div class="sheet-head"><h2>Pengaturan</h2>
       <button class="icon-btn" data-aksi="tutup-sheet" aria-label="Tutup">✕</button></div>
+
+    <p class="eyebrow" style="margin-bottom:10px">Akun &amp; sinkronisasi</p>
+    <div id="panelAkun" style="margin-bottom:22px">${panelAkunHTML()}</div>
+
+    <p class="eyebrow" style="margin-bottom:10px">Perhitungan</p>
     <div class="grid2">
       <div class="field"><label class="lbl" for="s-tarif">Tarif listrik per kWh</label>
         <input class="inp n" id="s-tarif" data-s="tarifListrik" inputmode="decimal" value="${esc(fmtN(num(s.tarifListrik),0))}"></div>
@@ -1060,7 +1090,7 @@ function sheetPengaturan() {
       Upah per jam jadi nilai awal baris “Tenaga kerja”, dan masih bisa diubah per produk.</p>
     <div style="margin-top:22px;border-top:1px dashed var(--garis-kuat);padding-top:18px">
       <p class="eyebrow" style="margin-bottom:10px">Cadangan data</p>
-      <p class="sub" style="margin-bottom:14px">Data hanya tersimpan di peramban perangkat ini. Export berkala supaya tidak hilang saat cache dibersihkan atau ganti HP.</p>
+      <p class="sub" style="margin-bottom:14px">Satu file berisi seluruh produk, bahan, dan pengaturan. Berguna sebagai salinan di luar aplikasi — juga saat sinkronisasi aktif, kalau sewaktu-waktu ada yang terhapus.</p>
       <div style="display:flex;gap:9px;flex-wrap:wrap">
         <button class="btn primary" data-aksi="export">Download backup (.json)</button>
         <button class="btn ghost" data-aksi="import">Pulihkan dari file</button>
@@ -1139,7 +1169,7 @@ document.addEventListener('click', e => {
     else if (a === 'tambah-ops') tambahBarisOps();
     else if (a === 'hapus-produk') konfirmasi(aksi, 'Tekan lagi untuk hapus', () => {
       const id = S.editId; if (!id) return;
-      delete S.produk[id]; simpan(); S.editId = null; render();
+      delete S.produk[id]; tandaiHapus('produk', id); S.editId = null; render();
     });
     return;
   }
@@ -1170,7 +1200,7 @@ document.addEventListener('click', e => {
     const id = hp.dataset.hapusPustaka;
     const dipakai = Object.values(S.produk).filter(p => (p.bahan||[]).some(i => i.bahanId === id)).length;
     konfirmasi(hp, dipakai ? `Dipakai di ${dipakai} produk — tekan lagi` : 'Tekan lagi untuk hapus', () => {
-      delete S.bahan[id]; simpan(); render();
+      delete S.bahan[id]; tandaiHapus('bahan', id); render();
     });
     return;
   }
@@ -1227,7 +1257,8 @@ document.addEventListener('focusout', e => {
   const v = num(t.value);
   const bulat = ['harga','rp','tarif','porsi','hargaJual','tarifListrik','upahJam','targetMargin'].includes(t.dataset.f || t.dataset.p || t.dataset.s);
   t.value = v ? fmtN(v, bulat ? 0 : 2) : '';
-  if (S.tundaRender) { S.tundaRender = false; render(); }
+  // Ditunda satu putaran: blur ini bisa dipicu oleh render yang sedang berjalan.
+  if (S.tundaRender) { S.tundaRender = false; setTimeout(render, 0); }
 });
 
 /* ===================================================================
@@ -1533,7 +1564,10 @@ function tulisSemua(d) {
 let jamSimpan = null;
 function jadwalSimpan() {
   clearTimeout(jamSimpan);
-  jamSimpan = setTimeout(() => tulisSemua({ versi:1, bahan:S.bahan, produk:S.produk, setel:S.setel }), 300);
+  jamSimpan = setTimeout(() => {
+    tulisSemua({ versi:1, bahan:S.bahan, produk:S.produk, setel:S.setel });
+    dorongKeCloud();          // tidak melakukan apa-apa kalau belum masuk akun
+  }, 300);
 }
 
 function muatAwal() {
@@ -1550,10 +1584,16 @@ function muatAwal() {
     S.setel  = Object.assign({}, SETEL_AWAL, BENIH.setel);
     tulisSemua({ versi:1, bahan:S.bahan, produk:S.produk, setel:S.setel });
   }
-  // Jaga-jaga data lama tanpa field baru
-  Object.values(S.produk).forEach(p => { if (!Array.isArray(p.bahan)) p.bahan = []; if (!Array.isArray(p.ops)) p.ops = []; });
+  rapikan();
   S.siap = true;
   tampilkan();
+}
+/* Jaga-jaga data lama atau data cloud yang kehilangan field */
+function rapikan() {
+  Object.values(S.produk).forEach(p => {
+    if (!Array.isArray(p.bahan)) p.bahan = [];
+    if (!Array.isArray(p.ops)) p.ops = [];
+  });
 }
 
 function tampilkan() {
@@ -1622,8 +1662,297 @@ function pulihkanBackup(file) {
   reader.readAsText(file);
 }
 
+/* ===================================================================
+   SINKRONISASI ANTAR PERANGKAT (Firebase)
+
+   Isi FIREBASE_CONFIG di bawah dengan config dari proyek Firebase milikmu.
+   Selama masih null, aplikasi jalan seperti biasa: data hanya di perangkat ini.
+   Setelah diisi dan kamu masuk dengan Google, data pindah ke cloud dan setiap
+   perubahan di satu perangkat langsung muncul di perangkat lain.
+
+   Cara mengisi: Firebase Console → ⚙️ Project settings → Your apps → Web app →
+   bagian "SDK setup and configuration" → pilih "Config" → salin objeknya ke sini.
+
+   Kunci di bawah BUKAN rahasia — memang dirancang untuk terbaca publik.
+   Yang menjaga datamu adalah login Google dan security rules di Firestore.
+   =================================================================== */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyDYNhR13c77nDDycOzZPj4XAWTUxktbBpY",
+  authDomain: "kalkulator-hpp-d0bf8.firebaseapp.com",
+  projectId: "kalkulator-hpp-d0bf8",
+  storageBucket: "kalkulator-hpp-d0bf8.firebasestorage.app",
+  messagingSenderId: "748330750698",
+  appId: "1:748330750698:web:18b56b45aff2db6542fd93",
+  measurementId: "G-C3Q806S63C"
+};
+
+const SDK = 'https://www.gstatic.com/firebasejs/10.14.1/';
+
+const Sinkron = {
+  siapPakai: false,   // config terisi dan SDK termuat
+  masuk: false,
+  uid: null, email: '',
+  status: 'mati',     // mati | memuat | perlu-masuk | menyamakan | tersambung | offline | galat
+  pesan: '',
+  db: null, auth: null, akar: null,
+  lepas: [],
+  sibuk: false,
+};
+
+const IKON_AWAN_MATI = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 18.5A3.5 3.5 0 0 1 6 11.6a5 5 0 0 1 8.5-2.9"/><path d="M18 18.5a3 3 0 0 0 .3-6"/><path d="M3 3l18 18"/></svg>';
+const IKON_AWAN      = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 18.5h11a3.5 3.5 0 0 0 .4-7A5.5 5.5 0 0 0 7.6 10a3.75 3.75 0 0 0-1.1 8.5Z"/></svg>';
+const IKON_AWAN_OK   = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 17.5h11a3.5 3.5 0 0 0 .4-7A5.5 5.5 0 0 0 7.6 9a3.75 3.75 0 0 0-1.1 8.5Z"/><path d="M9 14.2l2 2 4-4.2"/></svg>';
+
+function muatSkrip(src) {
+  return new Promise((selesai, gagal) => {
+    const s = document.createElement('script');
+    s.src = src; s.async = true;
+    s.onload = selesai;
+    s.onerror = () => gagal(new Error('gagal memuat ' + src));
+    document.head.appendChild(s);
+  });
+}
+
+function aturStatus(status, pesan) {
+  Sinkron.status = status;
+  Sinkron.pesan = pesan || '';
+  const b = $('#btnSinkron');
+  if (b) {
+    const ikon = status === 'mati' ? IKON_AWAN_MATI : status === 'tersambung' ? IKON_AWAN_OK : IKON_AWAN;
+    b.innerHTML = ikon;
+    b.style.color = status === 'tersambung' ? 'var(--baik-tinta)'
+                  : status === 'galat' ? 'var(--kritis-tinta)'
+                  : status === 'menyamakan' || status === 'memuat' ? 'var(--hati-tinta)'
+                  : 'var(--tinta-3)';
+    b.title = teksStatus();
+  }
+  const p = $('#panelAkun');
+  if (p) p.innerHTML = panelAkunHTML();
+}
+function teksStatus() {
+  switch (Sinkron.status) {
+    case 'mati':        return 'Sinkronisasi belum disiapkan';
+    case 'memuat':      return 'Menyiapkan sinkronisasi…';
+    case 'perlu-masuk': return 'Belum masuk — data hanya di perangkat ini';
+    case 'menyamakan':  return 'Menyamakan data…';
+    case 'tersambung':  return 'Tersambung sebagai ' + Sinkron.email;
+    case 'offline':     return 'Offline — perubahan dikirim saat online lagi';
+    default:            return Sinkron.pesan || 'Sinkronisasi bermasalah';
+  }
+}
+
+function panelAkunHTML() {
+  if (!FIREBASE_CONFIG) {
+    return `<div class="note info"><span class="ic">☁️</span><span>
+      <b>Sinkronisasi belum disiapkan.</b> Data hanya tersimpan di perangkat ini.
+      Isi <code>FIREBASE_CONFIG</code> di dalam <code>index.html</code> untuk menyalakannya.</span></div>`;
+  }
+  if (Sinkron.status === 'memuat')
+    return `<div class="note info"><span class="ic">⏳</span><span>Menyiapkan sinkronisasi…</span></div>`;
+  if (Sinkron.status === 'galat')
+    return `<div class="note bad"><span class="ic">⚠️</span><span><b>Sinkronisasi gagal.</b> ${esc(Sinkron.pesan)}</span></div>`;
+  if (!Sinkron.masuk) {
+    return `<div class="note info" style="margin-bottom:12px"><span class="ic">☁️</span><span>
+        Masuk dengan Google supaya data yang sama terbaca di HP maupun PC.</span></div>
+      <button class="btn primary" data-aksi="masuk" style="width:100%;justify-content:center">Masuk dengan Google</button>`;
+  }
+  const kabar = Sinkron.status === 'offline'
+    ? `<div class="note warn" style="margin-top:10px"><span class="ic">📡</span><span>
+        Sedang offline. Perubahanmu tersimpan di perangkat dan dikirim otomatis saat online lagi.</span></div>`
+    : `<div class="note ok" style="margin-top:10px"><span class="ic">✅</span><span>
+        Tersambung. Perubahan di perangkat lain muncul di sini secara otomatis.</span></div>`;
+  return `<div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap">
+      <div style="flex:1;min-width:0">
+        <div class="eyebrow">Masuk sebagai</div>
+        <div style="font-size:13.5px;font-weight:600;overflow-wrap:anywhere">${esc(Sinkron.email)}</div>
+      </div>
+      <button class="btn ghost" data-aksi="keluar">Keluar</button>
+    </div>${kabar}`;
+}
+
+async function mulaiSinkron() {
+  if (!FIREBASE_CONFIG) { aturStatus('mati'); return; }
+  aturStatus('memuat');
+  try {
+    await muatSkrip(SDK + 'firebase-app-compat.js');
+    await Promise.all([
+      muatSkrip(SDK + 'firebase-auth-compat.js'),
+      muatSkrip(SDK + 'firebase-firestore-compat.js'),
+    ]);
+    const fb = window.firebase;
+    if (!fb) throw new Error('SDK Firebase tidak termuat');
+    if (!fb.apps.length) fb.initializeApp(FIREBASE_CONFIG);
+    Sinkron.auth = fb.auth();
+    Sinkron.db = fb.firestore();
+    // Cache lokal Firestore: aplikasi tetap bisa dipakai saat sinyal hilang.
+    try { await Sinkron.db.enablePersistence({ synchronizeTabs:true }); } catch (e) { /* tab lain sudah memakainya */ }
+    Sinkron.siapPakai = true;
+
+    Sinkron.auth.onAuthStateChanged(async akun => {
+      lepasLangganan();
+      if (!akun) {
+        Sinkron.masuk = false; Sinkron.uid = null; Sinkron.email = '';
+        aturStatus('perlu-masuk');
+        return;
+      }
+      Sinkron.masuk = true; Sinkron.uid = akun.uid; Sinkron.email = akun.email || akun.displayName || 'akun Google';
+      Sinkron.akar = Sinkron.db.collection('users').doc(akun.uid);
+      aturStatus('menyamakan');
+      try { await samakanAwal(); langganan(); aturStatus('tersambung'); }
+      catch (e) { aturStatus('galat', pesanGalat(e)); }
+    });
+
+    window.addEventListener('online',  () => { if (Sinkron.masuk) aturStatus('tersambung'); });
+    window.addEventListener('offline', () => { if (Sinkron.masuk) aturStatus('offline'); });
+  } catch (e) {
+    aturStatus('galat', pesanGalat(e));
+  }
+}
+function pesanGalat(e) {
+  const kode = (e && e.code) || '';
+  if (kode === 'permission-denied') return 'Security rules menolak akses. Pastikan rules Firestore sudah dipasang.';
+  if (kode === 'auth/popup-blocked') return 'Jendela login diblokir peramban. Izinkan popup untuk situs ini.';
+  if (kode === 'auth/unauthorized-domain') return 'Domain ini belum didaftarkan di Firebase → Authentication → Settings → Authorized domains.';
+  if (kode === 'failed-precondition') return 'Firestore belum dibuat di proyek Firebase ini.';
+  return (e && e.message) || 'Penyebab tidak diketahui.';
+}
+
+async function masukGoogle() {
+  if (!Sinkron.auth) return;
+  try {
+    const p = new window.firebase.auth.GoogleAuthProvider();
+    await Sinkron.auth.signInWithPopup(p);
+  } catch (e) {
+    if (e && e.code === 'auth/popup-closed-by-user') return;   // dibatalkan sendiri, bukan galat
+    aturStatus('galat', pesanGalat(e));
+  }
+}
+async function keluarAkun() {
+  if (!Sinkron.auth) return;
+  lepasLangganan();
+  try { await Sinkron.auth.signOut(); } catch (e) {}
+}
+function lepasLangganan() { Sinkron.lepas.forEach(f => { try { f(); } catch (e) {} }); Sinkron.lepas = []; }
+
+/* Pertemuan pertama antara data perangkat dan data cloud.
+   Cloud kosong  → data perangkat ini diunggah.
+   Cloud berisi  → cloud yang dipakai, data perangkat ditimpa.  */
+async function samakanAwal() {
+  const [snapP, snapB] = await Promise.all([
+    Sinkron.akar.collection('produk').get(),
+    Sinkron.akar.collection('bahan').get(),
+  ]);
+  const cloudKosong = snapP.empty && snapB.empty;
+  const adaLokal = Object.keys(S.produk).length || Object.keys(S.bahan).length;
+
+  if (cloudKosong && adaLokal) { await dorongSemua(); return; }
+  if (cloudKosong) return;
+
+  const produk = {}, bahan = {};
+  snapP.forEach(d => { produk[d.id] = Object.assign({}, d.data(), { id:d.id }); });
+  snapB.forEach(d => { bahan[d.id]  = Object.assign({}, d.data(), { id:d.id }); });
+  S.produk = produk; S.bahan = bahan;
+  try {
+    const setel = await Sinkron.akar.collection('meta').doc('setel').get();
+    if (setel.exists) S.setel = Object.assign({}, SETEL_AWAL, setel.data());
+  } catch (e) {}
+  kotor.produk.clear(); kotor.bahan.clear(); kotor.setel = false;
+  kotor.buangProduk.clear(); kotor.buangBahan.clear();
+  terapkanJauh();
+}
+
+function langganan() {
+  const pasang = (ref, fn) => { try { Sinkron.lepas.push(ref.onSnapshot(fn, e => aturStatus('galat', pesanGalat(e)))); } catch (e) {} };
+  pasang(Sinkron.akar.collection('produk'), snap => terimaKoleksi('produk', snap));
+  pasang(Sinkron.akar.collection('bahan'),  snap => terimaKoleksi('bahan',  snap));
+  pasang(Sinkron.akar.collection('meta').doc('setel'), d => {
+    if (d.metadata.hasPendingWrites) return;
+    if (d.exists) { S.setel = Object.assign({}, SETEL_AWAL, d.data()); terapkanJauh(); }
+  });
+}
+function terimaKoleksi(jenis, snap) {
+  // Lewati gema tulisan sendiri: kalau tidak, apa yang sedang diketik bisa tertimpa.
+  if (snap.metadata.hasPendingWrites) return;
+  // Masih ada perubahan lokal yang belum terkirim? Data cloud lebih tua — jangan dipakai,
+  // nanti ketikan terakhir hilang. Snapshot berikutnya (setelah terkirim) yang dipakai.
+  const antre = jenis === 'produk' ? (kotor.produk.size || kotor.buangProduk.size)
+                                   : (kotor.bahan.size  || kotor.buangBahan.size);
+  if (antre || Sinkron.sibuk) return;
+  const baru = {};
+  snap.forEach(d => { baru[d.id] = Object.assign({}, d.data(), { id:d.id }); });
+  if (jenis === 'produk') S.produk = baru; else S.bahan = baru;
+  terapkanJauh();
+}
+/* Perubahan dari perangkat lain: jangan gambar ulang kolom isian
+   kalau jari masih di atasnya — nanti kursornya lompat. */
+function terapkanJauh() {
+  rapikan();
+  tulisSemua({ versi:1, bahan:S.bahan, produk:S.produk, setel:S.setel });
+  if (S.editId && !S.produk[S.editId]) S.editId = null;
+  const el = document.activeElement;
+  if (S.editId && el && el.closest && el.closest('#editor')) { S.tundaRender = true; renderHasil(); return; }
+  render();
+}
+
+async function dorongSemua() {
+  const b = Sinkron.db.batch();
+  Object.values(S.produk).forEach(p => b.set(Sinkron.akar.collection('produk').doc(p.id), bersihkan(p)));
+  Object.values(S.bahan).forEach(x  => b.set(Sinkron.akar.collection('bahan').doc(x.id),  bersihkan(x)));
+  b.set(Sinkron.akar.collection('meta').doc('setel'), Object.assign({}, S.setel));
+  b.set(Sinkron.akar, { dibuat:Date.now() }, { merge:true });
+  await b.commit();
+}
+/* Firestore menolak undefined; buang juga field id (sudah jadi nama dokumen). */
+function bersihkan(o) { return JSON.parse(JSON.stringify(Object.assign({}, o, { id:undefined }))); }
+
+async function dorongKeCloud() {
+  if (!Sinkron.masuk || !Sinkron.akar || Sinkron.sibuk) return;
+  const adaKerja = kotor.produk.size || kotor.bahan.size || kotor.setel || kotor.buangProduk.size || kotor.buangBahan.size;
+  if (!adaKerja) return;
+  Sinkron.sibuk = true;
+  const kerja = {
+    produk: [...kotor.produk], bahan: [...kotor.bahan], setel: kotor.setel,
+    buangProduk: [...kotor.buangProduk], buangBahan: [...kotor.buangBahan],
+  };
+  kotor.produk.clear(); kotor.bahan.clear(); kotor.setel = false;
+  kotor.buangProduk.clear(); kotor.buangBahan.clear();
+  try {
+    const b = Sinkron.db.batch();
+    kerja.produk.forEach(id => { if (S.produk[id]) b.set(Sinkron.akar.collection('produk').doc(id), bersihkan(S.produk[id])); });
+    kerja.bahan.forEach(id  => { if (S.bahan[id])  b.set(Sinkron.akar.collection('bahan').doc(id),  bersihkan(S.bahan[id])); });
+    kerja.buangProduk.forEach(id => b.delete(Sinkron.akar.collection('produk').doc(id)));
+    kerja.buangBahan.forEach(id  => b.delete(Sinkron.akar.collection('bahan').doc(id)));
+    if (kerja.setel) b.set(Sinkron.akar.collection('meta').doc('setel'), Object.assign({}, S.setel));
+    await b.commit();
+    if (Sinkron.status !== 'offline') aturStatus('tersambung');
+  } catch (e) {
+    // Kembalikan ke daftar kotor supaya dicoba lagi pada perubahan berikutnya.
+    kerja.produk.forEach(id => kotor.produk.add(id));
+    kerja.bahan.forEach(id => kotor.bahan.add(id));
+    kerja.buangProduk.forEach(id => kotor.buangProduk.add(id));
+    kerja.buangBahan.forEach(id => kotor.buangBahan.add(id));
+    if (kerja.setel) kotor.setel = true;
+    aturStatus(navigator.onLine === false ? 'offline' : 'galat', pesanGalat(e));
+  } finally {
+    Sinkron.sibuk = false;
+  }
+}
+
+document.addEventListener('click', e => {
+  if (e.target.closest('#btnSinkron')) { sheetPengaturan(); return; }
+  const a = e.target.closest('[data-aksi]');
+  if (!a) return;
+  if (a.dataset.aksi === 'masuk') masukGoogle();
+  else if (a.dataset.aksi === 'keluar') keluarAkun();
+});
+
+/* ===================================================================
+   MULAI
+   =================================================================== */
 muatAwal();
 pasangTema(temaSekarang());
+aturStatus(FIREBASE_CONFIG ? 'memuat' : 'mati');
+mulaiSinkron();
 </script>
 </body>
 </html>
