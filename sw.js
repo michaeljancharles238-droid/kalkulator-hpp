@@ -1,7 +1,7 @@
 /* Service worker Kalkulator HPP Warung.
    Naikkan nomor versi di bawah setiap kali index.html berubah, supaya
    perangkat yang sudah memasang aplikasi ini mengambil versi baru. */
-const CACHE = 'kalkulator-hpp-v1';
+const CACHE = 'kalkulator-hpp-v3';
 
 const ASET = [
   './',
@@ -13,7 +13,9 @@ const ASET = [
 
 /* Huruf diambil dari Google Fonts. Disimpan terpisah agar tampilan tetap
    utuh saat offline — tanpa ini, aplikasi offline jatuh ke huruf bawaan HP. */
-const HURUF = ['fonts.googleapis.com', 'fonts.gstatic.com'];
+const HURUF = ['fonts.googleapis.com', 'fonts.gstatic.com', 'www.gstatic.com'];
+/* www.gstatic.com juga menyajikan SDK Firebase — ikut disimpan agar sinkronisasi
+   tetap hidup (lewat cache lokal Firestore) saat sinyal di warung hilang. */
 
 self.addEventListener('install', e => {
   e.waitUntil(
