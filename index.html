@@ -715,6 +715,19 @@ function periksa(p, h) {
         `jumlah belinya dibulatkan ke atas.` });
     }
   }
+  // Waktu operasional yang jauh lebih panjang dari masuk akal per porsi biasanya
+  // sisa dari batch lama yang jumlah porsinya lebih besar. Diminta dicek, bukan
+  // dituduh salah — masakan yang direbus lama memang bisa begitu.
+  const lama = (h.opsList || []).filter(o =>
+    (o.mode === 'listrik' || o.mode === 'jam') && h.porsiEf > 0 && num(o.menit) / h.porsiEf > 40);
+  if (lama.length) {
+    const o = lama[0];
+    w.push({ k:'warn', t:
+      `<b>Cek waktu pada “${esc(o.nama || 'biaya operasional')}”.</b> Tertulis ${fmtN(num(o.menit),0)} menit untuk satu batch ` +
+      `berisi ${fmtN(h.porsiEf,0)} porsi — berarti <b>${fmtN(num(o.menit)/h.porsiEf,0)} menit per porsi</b>. ` +
+      `Kalau itu sisa dari batch yang dulu lebih besar, betulkan ke waktu sebenarnya: biaya ${rp(o.rp)} ini ikut menaikkan HPP.` });
+  }
+
   if (h.items.length && h.opsRp === 0)
     w.push({ k:'info', t:'<b>Biaya operasional masih kosong.</b> Gas, listrik, dan tenaga kerja belum ikut dihitung, jadi HPP ini lebih rendah dari kenyataan.' });
   if (!h.jual)
@@ -723,8 +736,47 @@ function periksa(p, h) {
     w.push({ k:'bad', t:`<b>Harga jual di bawah HPP.</b> Tiap porsi rugi ${rp(Math.abs(h.laba))} — satu batch rugi ${rp(Math.abs(h.labaBatch))}.` });
   else if (h.lengkap && h.margin < 15)
     w.push({ k:'warn', t:`<b>Margin ${pct(h.margin)} terlalu tipis.</b> Sekali bahan naik harga atau ada yang terbuang, produk ini langsung rugi.` });
-  if (h.lengkap && h.foodCost > 40)
-    w.push({ k:'warn', t:`<b>Biaya bahan ${pct(h.foodCost)} dari harga jual.</b> Patokan umum usaha makanan 30–35%. Di atas itu, operasional dan tenaga kerja susah tertutup.` });
+  /* Patokan "bahan 30–35%" dibuat untuk usaha yang membayar sewa tempat dan
+     gaji karyawan. Usaha rumahan tidak punya pos itu, jadi bahan boleh memakan
+     porsi lebih besar tanpa berarti ada yang salah. Yang tetap perlu dikatakan
+     adalah risikonya: bahan sebesar itu tidak menyisakan bantalan. */
+  if (h.lengkap && h.foodCost > 40) {
+    const opsBagian = h.jual > 0 ? h.opsPerPorsi / h.jual * 100 : 0;
+    const rumahan = opsBagian < 10;
+    const naik20 = h.bahanPerPorsi * 1.2 + h.opsPerPorsi;
+    const marginNaik = (h.jual - naik20) / h.jual * 100;
+
+    // Satu bahan yang memegang sebagian besar biaya = satu titik rapuh.
+    const urut = h.items.filter(i => i.rp > 0).sort((a,b) => b.rp - a.rp);
+    const utama = urut[0];
+    const bagianUtama = (utama && h.bahanRp > 0) ? utama.rp / h.bahanRp * 100 : 0;
+    const tUtama = (utama && bagianUtama >= 40)
+      ? ` Yang paling menentukan <b>${esc((S.bahan[utama.bahanId] || {}).nama || 'bahan utama')}</b> — ${pct(bagianUtama)} dari biaya bahan, jadi harganya yang paling perlu dipantau.`
+      : '';
+
+    w.push(rumahan ? { k:'info', t:
+      `<b>Biaya bahan ${pct(h.foodCost)} dari harga jual.</b> Patokan umum usaha makanan 30–35%, tapi patokan itu untuk ` +
+      `usaha yang membayar sewa tempat dan gaji karyawan. Operasionalmu baru ${pct(opsBagian)} dari harga jual, jadi ` +
+      `susunan ini wajar untuk usaha rumahan. Risikonya ada di satu hal: tidak ada bantalan kalau bahan naik — ` +
+      `naik 20% saja margin turun dari ${pct(h.margin)} ke ${pct(marginNaik)}.${tUtama}` }
+    : { k:'warn', t:
+      `<b>Biaya bahan ${pct(h.foodCost)} dari harga jual.</b> Patokan umum usaha makanan 30–35%, dan operasionalmu ` +
+      `sudah ${pct(opsBagian)}, jadi sisa untuk laba jadi tipis. Bahan naik 20% → margin ${pct(h.margin)} turun ke ` +
+      `${pct(marginNaik)}.${tUtama}` });
+  }
+
+  /* Margin tebal pada usaha yang dikerjakan sendiri hampir selalu karena waktu
+     kerja belum masuk hitungan. Lebih baik diketahui sekarang daripada saat
+     sudah terlanjur menyewa tempat atau menggaji orang. */
+  const adaUpah = (p.ops || []).some(o => o.mode === 'jam' && num(o.menit) > 0);
+  if (h.lengkap && !adaUpah && h.margin > 30) {
+    const upah5 = num(S.setel.upahJam) / 60 * 5;
+    const hpp5 = h.hpp + upah5;
+    w.push({ k:'info', t:
+      `<b>Waktu kerjamu belum ikut dihitung.</b> Margin ${pct(h.margin)} itu belum memotong tenaga sendiri. ` +
+      `Tambahkan baris operasional bermode “Tenaga kerja”: kalau 5 menit per porsi, HPP jadi ${rp(hpp5)} ` +
+      `dan margin ${pct((h.jual - hpp5) / h.jual * 100)}. Angka itu yang berlaku begitu pekerjaannya diserahkan ke orang lain.` });
+  }
   return w;
 }
 
@@ -1643,7 +1695,7 @@ document.addEventListener('focusout', e => {
    =================================================================== */
 const KUNCI = 'w21-hpp-v1';
 /* Naikkan bersamaan dengan CACHE di sw.js setiap kali berkas ini berubah. */
-const VERSI = '7';
+const VERSI = '8';
 const BENIH = {
 "bahan": {
 "b-milo": {
