@@ -273,6 +273,82 @@ select.inp { appearance:none; padding-right:26px;
 
 .hero-num { font-size:34px; font-weight:800; letter-spacing:-.035em; line-height:1.05; font-family:var(--mono); font-variant-numeric:tabular-nums; }
 
+/* ===== BASIS RESEP: bahan ditulis untuk 1 porsi atau 1 batch ===== */
+.basis-wrap { margin-top:16px; padding-top:15px; border-top:1px dashed var(--garis-kuat); }
+.basis-head { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:9px; flex-wrap:wrap; }
+.basis-efek {
+  font-size:10.5px; font-weight:700; font-family:var(--mono); font-variant-numeric:tabular-nums;
+  color:var(--tinta-3); background:var(--kartu-2); border-radius:7px; padding:3px 8px; white-space:nowrap;
+}
+.basis-seg { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.basis-opt {
+  text-align:left; padding:11px 13px; border-radius:13px; border:1.5px solid var(--garis);
+  background:var(--kartu-2); transition:border-color .15s, background .15s;
+}
+.basis-opt:active { transform:scale(.99); }
+.basis-opt.on { border-color:var(--aksen); background:var(--aksen-lembut); }
+.basis-opt .bj { display:block; font-size:13.5px; font-weight:750; color:var(--tinta); }
+.basis-opt.on .bj { color:var(--aksen-tinta); }
+.basis-opt .bk { display:block; font-size:10.5px; color:var(--tinta-3); line-height:1.45; margin-top:2px; }
+.basis-ket { font-size:11.5px; color:var(--tinta-2); line-height:1.6; margin-top:10px; }
+.basis-ket b { color:var(--tinta); font-weight:700; }
+
+/* ===== KARTU "MAU BIKIN BERAPA" ===== */
+.bl-input { display:flex; align-items:center; gap:10px; margin-top:14px; }
+.bl-input .inp {
+  width:124px; font-family:var(--mono); font-variant-numeric:tabular-nums;
+  font-size:20px; font-weight:750; text-align:right; padding:11px 13px;
+}
+.bl-input .sat { font-size:13px; font-weight:650; color:var(--tinta-2); }
+.bl-cepat { display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-top:10px; }
+.chip-cepat {
+  font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:11.5px; font-weight:650;
+  padding:5px 11px; border-radius:9px; color:var(--tinta-2);
+  background:var(--kartu-2); border:1px solid var(--garis);
+}
+.chip-cepat.on { color:var(--aksen-tinta); background:var(--aksen-lembut); border-color:transparent; }
+.bl-batch { font-size:11px; color:var(--tinta-3); margin-left:auto; font-family:var(--mono); }
+
+.bl-tabel { margin-top:16px; }
+.bl-head, .bl-row {
+  display:grid; grid-template-columns:minmax(0,1fr) 92px 84px 92px; gap:10px; align-items:baseline;
+}
+.bl-head {
+  font-size:10px; font-weight:700; letter-spacing:.07em; text-transform:uppercase;
+  color:var(--tinta-3); padding:0 2px 8px; border-bottom:1px solid var(--garis);
+}
+.bl-head span:nth-child(n+2) { text-align:right; }
+.bl-row { padding:9px 2px; border-bottom:1px dashed var(--garis); font-size:12.5px; }
+.bl-row:last-child { border-bottom:none; }
+.bl-row .nm { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.bl-row .bt, .bl-row .bl, .bl-row .rp {
+  text-align:right; font-family:var(--mono); font-variant-numeric:tabular-nums; font-weight:600;
+}
+.bl-row .bt { color:var(--tinta); }
+.bl-row .bl { color:var(--tinta-2); font-weight:550; }
+.bl-row small { display:block; font-family:var(--ui); font-size:10px; font-weight:500; color:var(--tinta-3); margin-top:2px; }
+.bl-row.err { opacity:.5; }
+
+.bl-hasil { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+.bl-hasil > div { padding:11px 13px; border-radius:13px; background:var(--kartu-2); }
+.bl-hasil .eyebrow { display:block; margin-bottom:3px; }
+.bl-hasil b { font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:16px; font-weight:800; letter-spacing:-.02em; }
+.bl-hasil .untung b { color:var(--baik-tinta); }
+.bl-hasil .rugi b { color:var(--kritis-tinta); }
+/* Di HP kolomnya tidak muat berdampingan. Jumlah beli justru paling dipakai
+   saat di pasar, jadi bukan dibuang — barisnya yang dipecah dua tingkat. */
+@media (max-width:480px) {
+  .basis-seg { grid-template-columns:1fr; }
+  .bl-head { display:none; }
+  .bl-row { display:flex; flex-wrap:wrap; align-items:baseline; gap:3px 10px; padding:11px 2px; }
+  .bl-row .nm { flex:1 1 100%; white-space:normal; font-size:13px; }
+  .bl-row .bt, .bl-row .bl { text-align:left; }
+  .bl-row .bl { font-size:11.5px; }
+  .bl-row .bl::before { content:'beli '; font-family:var(--ui); color:var(--tinta-3); }
+  .bl-row .rp { margin-left:auto; }
+  .bl-row small { display:inline; margin-left:5px; }
+}
+
 /* ===== TABEL ===== */
 .tbl-wrap { overflow-x:auto; margin:0 -4px; padding:0 4px; }
 table { border-collapse:collapse; width:100%; font-size:13px; min-width:560px; }
@@ -483,22 +559,101 @@ function biayaOps(o) {
   if (o.mode === 'jam')     return (num(o.menit)/60) * num(o.tarif || S.setel.upahJam);
   return num(o.rp);
 }
+/* Resep bisa ditulis dengan dua cara, dan bedanya menentukan arah perkalian:
+
+     basis "porsi" → angka bahan berlaku untuk SATU porsi.
+                     Tambah jumlah porsi → kebutuhan bahan ikut naik,
+                     HPP per porsi tetap. Ini cara yang lebih alami.
+     basis "batch" → angka bahan berlaku untuk SATU batch penuh.
+                     Tambah jumlah porsi → biaya batch dibagi lebih banyak,
+                     HPP per porsi turun. Cocok untuk masakan sepanci.
+
+   Produk lama tidak punya field ini, dan sengaja dibaca sebagai "batch"
+   supaya angka HPP yang sudah ada tidak berubah sendiri. */
+const basisDari = p => (p && p.basis === 'porsi') ? 'porsi' : 'batch';
+
 function hitung(p) {
-  const items = (p.bahan || []).map(it => Object.assign({}, it, biayaBaris(it)));
+  const basis = basisDari(p);
+  const porsi = Math.max(num(p.porsi), 0);
+  // Porsi kosong dianggap 1 pada basis "porsi", supaya biaya per porsi sudah
+  // terlihat sambil resepnya diketik — bukan Rp 0 sampai kolom porsi diisi.
+  const porsiEf = basis === 'porsi' ? (porsi || 1) : porsi;
+  const kali = basis === 'porsi' ? porsiEf : 1;   // pengali menuju satu batch
+
+  const items = (p.bahan || []).map(it => {
+    const b = biayaBaris(it);
+    return Object.assign({}, it, b, {
+      jumlahTulis: num(it.jumlah),            // angka yang diketik pengguna
+      jumlahBatch: num(it.jumlah) * kali,     // kebutuhan untuk satu batch
+      rpTulis: b.rp,
+      rp: b.rp * kali,                        // biaya untuk satu batch
+    });
+  });
   const bahanRp = items.reduce((s,i) => s + i.rp, 0);
   const opsList = (p.ops || []).map(o => Object.assign({}, o, { rp: biayaOps(o) }));
   const opsRp = opsList.reduce((s,o) => s + o.rp, 0);
   const total = bahanRp + opsRp;
-  const porsi = Math.max(num(p.porsi), 0);
-  const hpp   = porsi > 0 ? total / porsi : 0;
+  const hpp   = porsiEf > 0 ? total / porsiEf : 0;
   const jual  = num(p.hargaJual);
   const laba  = jual > 0 ? jual - hpp : 0;
   const margin = jual > 0 ? laba / jual * 100 : 0;
   const markup = (hpp > 0 && jual > 0) ? laba / hpp * 100 : 0;
-  const foodCost = (jual > 0 && porsi > 0) ? (bahanRp / porsi) / jual * 100 : 0;
+  const foodCost = (jual > 0 && porsiEf > 0) ? (bahanRp / porsiEf) / jual * 100 : 0;
   const lengkap = porsi > 0 && total > 0 && jual > 0;
-  return { items, bahanRp, opsList, opsRp, total, porsi, hpp, jual, laba, margin, markup, foodCost, lengkap,
-           labaBatch: jual > 0 ? (jual * porsi) - total : 0 };
+  return { items, bahanRp, opsList, opsRp, total, porsi, porsiEf, basis, kali,
+           bahanPerPorsi: porsiEf > 0 ? bahanRp / porsiEf : 0,
+           opsPerPorsi:   porsiEf > 0 ? opsRp / porsiEf : 0,
+           hpp, jual, laba, margin, markup, foodCost, lengkap,
+           labaBatch: jual > 0 ? (jual * porsiEf) - total : 0 };
+}
+
+/* ===================================================================
+   KEBUTUHAN BAHAN & BELANJA
+   Dari resep per porsi menjadi "berapa yang harus dibeli" untuk N porsi.
+   =================================================================== */
+/* 2.500 gr lebih enak dibaca sebagai 2,5 kg. Hanya naik tingkat kalau
+   angkanya memang besar — 800 gr tetap ditulis 800 gr. */
+function satuanEnak(jumlah, satuan) {
+  const s = SAT[satuan];
+  if (!s) return { n: jumlah, s: satuan };
+  if (s.fam === 'berat'  && satuan === 'gr' && Math.abs(jumlah) >= 1000) return { n: jumlah/1000, s:'kg' };
+  if (s.fam === 'volume' && satuan === 'ml' && Math.abs(jumlah) >= 1000) return { n: jumlah/1000, s:'l'  };
+  return { n: jumlah, s: satuan };
+}
+const teksJumlah = (jumlah, satuan) => { const e = satuanEnak(jumlah, satuan); return `${fmtN(e.n, 2)} ${e.s}`; };
+
+/* Daftar belanja untuk sejumlah porsi.
+   Biaya mengikuti HPP, jadi total modal selalu sama dengan HPP x porsi —
+   tidak ada angka yang berdiri sendiri dan bisa berbeda. */
+function rencanaBelanja(p, porsiTarget) {
+  const h = hitung(p);
+  const target = Math.max(num(porsiTarget), 0);
+  const perPorsi = h.porsiEf > 0 ? target / h.porsiEf : 0;   // berapa kali resep satu batch
+
+  const baris = h.items.map(i => {
+    const b = S.bahan[i.bahanId] || {};
+    const butuh = i.jumlahBatch * perPorsi;                  // dalam satuan baris
+    const isiKemasan = num(b.isi) * (SAT[b.satuan] ? SAT[b.satuan].f : 0);
+    const butuhDasar = butuh * (SAT[i.satuan] ? SAT[i.satuan].f : 0);
+    const kemasan = isiKemasan > 0 ? butuhDasar / isiKemasan : 0;
+    const beliKemasan = Math.ceil(kemasan - 1e-9);
+    // Satuan pcs tidak bisa dibeli separuh — sachet, cup, sendok.
+    const pecahan = i.satuan === 'pcs' && Math.abs(butuh - Math.round(butuh)) > 1e-9;
+    return {
+      id: i.bahanId, nama: b.nama || 'Bahan tidak ditemukan', satuan: i.satuan,
+      butuh, pecahan, bulat: Math.ceil(butuh - 1e-9),
+      kemasan, beliKemasan, isiKemasan, satuanKemasan: b.satuan,
+      rp: i.rpTulis * (h.kali * perPorsi), err: i.err,
+    };
+  });
+  const bahanRp = h.bahanPerPorsi * target;
+  const opsRp   = h.opsPerPorsi * target;
+  return { h, target, baris, bahanRp, opsRp,
+           modal: bahanRp + opsRp,
+           omzet: h.jual * target,
+           laba: (h.jual * target) - (bahanRp + opsRp),
+           batch: h.porsiEf > 0 ? target / h.porsiEf : 0,
+           adaPecahan: baris.some(b => b.pecahan) };
 }
 /* Harga jual dari target margin (persen dari harga jual, bukan dari modal). */
 const hargaDariMargin = (hpp, m) => { const x = clamp(num(m),0,95)/100; return hpp / (1 - x); };
@@ -524,7 +679,8 @@ function periksa(p, h) {
   // Bahan satuan pcs biasanya habis satu per porsi (cup, sendok, sachet).
   // Kalau jumlahnya beda jauh dari porsi jadi, salah satunya pasti salah isi.
   const pcsItems = h.items.filter(i => i.satuan === 'pcs' && !i.err && num(i.jumlah) > 0);
-  if (h.porsi > 0 && pcsItems.length) {
+
+  if (h.basis === 'batch' && h.porsi > 0 && pcsItems.length) {
     const beda = pcsItems.filter(i => Math.round(num(i.jumlah)) !== Math.round(h.porsi));
     if (beda.length) {
       const nama = beda.map(i => (S.bahan[i.bahanId] || {}).nama).filter(Boolean);
@@ -533,8 +689,30 @@ function periksa(p, h) {
       w.push({ k:'warn', t:
         `<b>Jumlah bahan tidak cocok dengan jumlah porsi.</b> ${esc(nama.join(', '))} dipakai ` +
         (sama ? `<b>${jml[0]} pcs</b>` : `${jml.map(j=>j+' pcs').join(' dan ')}`) +
-        `, tapi porsi jadi diisi <b>${h.porsi}</b>. Bahan yang habis satu per porsi biasanya jumlahnya sama dengan porsi jadi` +
-        (sama ? ` — kemungkinan porsi jadi yang seharusnya ${jml[0]}.` : '. Cek lagi mana yang benar.') });
+        `, tapi porsi jadi diisi <b>${h.porsi}</b>. Resep ini ditulis untuk <b>satu batch</b>, jadi bahan yang habis ` +
+        `satu per porsi mestinya sejumlah porsi jadi. Kalau yang kamu tulis sebenarnya takaran <b>satu porsi</b>, ` +
+        `ganti saja basisnya di atas — bahan akan dikalikan otomatis.` });
+    }
+  }
+
+  // Basis "porsi": angka yang ditulis adalah takaran satu porsi. Kalau angkanya
+  // justru sebesar jumlah porsi, kemungkinan besar takaran batch yang tersalin.
+  if (h.basis === 'porsi' && h.porsi > 1 && pcsItems.length) {
+    const mirip = pcsItems.filter(i => Math.round(num(i.jumlah)) === Math.round(h.porsi));
+    if (mirip.length) {
+      const nama = mirip.map(i => (S.bahan[i.bahanId] || {}).nama).filter(Boolean);
+      w.push({ k:'warn', t:
+        `<b>Sepertinya ini takaran satu batch, bukan satu porsi.</b> ${esc(nama.join(', '))} ditulis ` +
+        `<b>${Math.round(h.porsi)} pcs per porsi</b> — sama persis dengan jumlah porsi jadi. ` +
+        `Kalau maksudnya satu per porsi, isi <b>1</b> saja; aplikasi yang mengalikan ke ${Math.round(h.porsi)}.` });
+    }
+    const pecah = pcsItems.filter(i => Math.abs(num(i.jumlah) - Math.round(num(i.jumlah))) > 1e-9);
+    if (pecah.length) {
+      const nama = pecah.map(i => (S.bahan[i.bahanId] || {}).nama).filter(Boolean);
+      w.push({ k:'info', t:
+        `<b>Takaran pecahan pada barang hitungan.</b> ${esc(nama.join(', '))} ditulis tidak bulat. ` +
+        `Itu wajar untuk bahan yang dibagi (satu sachet untuk dua porsi), tapi cek daftar belanja — ` +
+        `jumlah belinya dibulatkan ke atas.` });
     }
   }
   if (h.items.length && h.opsRp === 0)
@@ -800,9 +978,16 @@ function renderProduk() {
 /* ===================================================================
    TAMPILAN: EDITOR PRODUK
    =================================================================== */
-function barisBahanHTML(it, i) {
+/* Teks kecil di bawah angka biaya. Pada basis "porsi" dengan lebih dari satu
+   porsi, di sinilah hasil perkaliannya terlihat tanpa pindah layar. */
+function ketBiaya(it, h) {
+  if (!h || h.kali <= 1) return h && h.basis === 'porsi' ? 'per porsi' : 'per batch';
+  return `${teksJumlah(num(it.jumlah) * h.kali, it.satuan)} · satu batch`;
+}
+function barisBahanHTML(it, i, h) {
   const b = S.bahan[it.bahanId] || {};
-  const hasil = biayaBaris(it);
+  const dasar = biayaBaris(it);
+  const hasil = { rp: dasar.rp * (h ? h.kali : 1), err: dasar.err };
   const satuanOpt = SAT_KEYS.map(k => `<option value="${k}"${k===it.satuan?' selected':''}>${k}</option>`).join('');
   return `<div class="row-i" data-baris="${i}">
     <span class="field" style="min-width:0">
@@ -813,7 +998,7 @@ function barisBahanHTML(it, i) {
       <input class="inp n" data-f="jumlah" inputmode="decimal" value="${esc(fmtN(num(it.jumlah)))}" aria-label="Jumlah terpakai">
       <select class="inp" data-f="satuan" aria-label="Satuan">${satuanOpt}</select>
     </span>
-    <span class="cost">${rp(hasil.rp)}<small>${hasil.err ? '' : 'per batch'}</small></span>
+    <span class="cost">${rp(hasil.rp)}<small>${hasil.err ? '' : esc(ketBiaya(it, h))}</small></span>
     <button class="del" data-hapus-bahan="${i}" aria-label="Hapus baris">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 7h14M9.5 7V5h5v2M7 7l1 13h8l1-13"/></svg>
     </button>
@@ -850,6 +1035,77 @@ function barisOpsHTML(o, i) {
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 7h14M9.5 7V5h5v2M7 7l1 13h8l1-13"/></svg>
     </button>
   </div>`;
+}
+
+/* ===================================================================
+   KARTU "MAU BIKIN BERAPA"
+   Pertanyaan yang benar-benar dibawa ke pasar: untuk sekian porsi,
+   belanjanya apa saja, berapa modalnya, dan berapa baliknya.
+   =================================================================== */
+const rencanaAktif = (p, h) => num(p.rencana) || h.porsiEf || 1;
+
+function belanjaHTML(p, h) {
+  if (!(p.bahan || []).length) return '';
+  return `<div class="card" id="belanja">
+    <div class="sec-head" style="margin-bottom:4px">
+      <div><h2>Mau bikin berapa?</h2>
+        <p class="sub">Kebutuhan bahan dan modal untuk sekali produksi.</p></div>
+    </div>
+    <div class="bl-input">
+      <input class="inp n" id="e-rencana" data-p="rencana" inputmode="decimal"
+             value="${esc(fmtN(rencanaAktif(p, h), 0))}" aria-label="Jumlah porsi yang mau dibuat">
+      <span class="sat">porsi</span>
+    </div>
+    <div id="belanjaIsi">${belanjaIsiHTML(p, h)}</div>
+  </div>`;
+}
+
+/* Bagian yang berubah saat angka porsi diketik. Dipisah dari kolom isian
+   supaya mengetik tidak menggambar ulang kotak yang sedang diketik. */
+function belanjaIsiHTML(p, h) {
+  const bawaan = rencanaAktif(p, h);
+  const r = rencanaBelanja(p, bawaan);
+
+  // Kelipatan batch — angka yang memang dipikirkan pemilik warung.
+  const cepat = [...new Set([h.porsiEf, h.porsiEf*2, h.porsiEf*5, h.porsiEf*10])]
+    .filter(n => n > 0 && n <= 100000).slice(0, 4);
+
+  const baris = r.baris.map(b => `
+    <div class="bl-row${b.err ? ' err' : ''}">
+      <span class="nm">${esc(b.nama)}</span>
+      <span class="bt">${b.err ? '—' : esc(teksJumlah(b.butuh, b.satuan))}${
+        b.pecahan ? `<small>bulatkan ${fmtN(b.bulat,0)} ${esc(b.satuan)}</small>` : ''}</span>
+      <span class="bl">${b.err || !(b.beliKemasan > 0)
+        ? '<small>—</small>'
+        : `${fmtN(b.beliKemasan,0)} ×<small>${esc(fmtN(b.isiKemasan / (SAT[b.satuanKemasan] ? SAT[b.satuanKemasan].f : 1), 2))} ${esc(b.satuanKemasan)}</small>`}</span>
+      <span class="rp">${b.err ? '—' : rp(b.rp)}</span>
+    </div>`).join('');
+
+  return `
+    <div class="bl-cepat">
+      ${cepat.map(n => `<button class="chip-cepat${n === Math.round(bawaan) ? ' on' : ''}" data-rencana="${n}">${fmtN(n,0)}</button>`).join('')}
+      <span class="bl-batch">${r.batch > 0 ? `= ${fmtN(r.batch, r.batch % 1 ? 2 : 0)} batch` : ''}</span>
+    </div>
+
+    <div class="bl-tabel">
+      <div class="bl-head"><span>Bahan</span><span>Butuh</span><span>Beli</span><span>Biaya</span></div>
+      ${baris}
+    </div>
+
+    ${r.adaPecahan ? `<div class="note warn" style="margin-top:12px"><span class="ic">✂️</span><span>
+      Ada bahan hitungan yang jumlahnya tidak bulat. Sachet dan cup tidak bisa dibeli separuh —
+      beli dibulatkan ke atas, sisanya kepakai produksi berikutnya.</span></div>` : ''}
+
+    <div class="nota" style="margin-top:16px">
+      <div class="line"><span>Modal bahan</span><b>${rp(r.bahanRp)}</b></div>
+      <div class="line"><span>Operasional</span><b>${rp(r.opsRp)}</b></div>
+      <div class="line total"><span>Total modal</span><b>${rp(r.modal)}</b></div>
+    </div>
+    ${h.jual > 0 ? `<div class="bl-hasil">
+      <div><span class="eyebrow">Omzet bila habis</span><b>${rp(r.omzet)}</b></div>
+      <div class="${r.laba >= 0 ? 'untung' : 'rugi'}">
+        <span class="eyebrow">${r.laba >= 0 ? 'Laba' : 'Rugi'}</span><b>${rp(Math.abs(r.laba))}</b></div>
+    </div>` : `<p class="cap" style="margin-top:12px">Isi harga jual untuk melihat omzet dan labanya.</p>`}`;
 }
 
 function hasilHTML(p, h) {
@@ -897,6 +1153,8 @@ function hasilHTML(p, h) {
     ${tangga}
   </div>
 
+  ${belanjaHTML(p, h)}
+
   <div class="card">
     <div class="sec-head" style="margin-bottom:14px"><h2>Usulan harga jual</h2>
       <span class="sub">target ${pct(target)}</span></div>
@@ -927,6 +1185,40 @@ function hasilHTML(p, h) {
   </div>` : ''; })()}`;
 }
 
+/* Pemilih basis resep. Ditaruh tepat di bawah kolom porsi karena keduanya
+   saling menentukan: angka porsi tidak ada artinya tanpa tahu bahannya
+   ditulis untuk apa. Akibat memilih ditulis apa adanya, termasuk HPP yang
+   akan keluar kalau basisnya ditukar — supaya tidak perlu coba-coba. */
+function basisHTML(p, h) {
+  const basis = h.basis;
+  const lawan = Object.assign({}, p, { basis: basis === 'porsi' ? 'batch' : 'porsi' });
+  const hl = hitung(lawan);
+  const porsi = h.porsi;
+  const adaBahan = (p.bahan || []).length > 0;
+
+  const tombol = (nilai, judul, ket) => `
+    <button class="basis-opt${basis === nilai ? ' on' : ''}" data-basis="${nilai}"
+            aria-pressed="${basis === nilai}">
+      <span class="bj">${judul}</span>
+      <span class="bk">${ket}</span>
+    </button>`;
+
+  const beda = adaBahan && porsi > 1 && Math.round(hl.hpp) !== Math.round(h.hpp);
+  return `<div class="basis-wrap">
+    <div class="basis-head">
+      <span class="lbl" style="margin:0">Angka bahan di bawah ditulis untuk</span>
+      ${beda ? `<span class="basis-efek">ditukar → HPP ${rp(hl.hpp)}</span>` : ''}
+    </div>
+    <div class="basis-seg">
+      ${tombol('porsi', '1 porsi', 'bahan dikali jumlah porsi')}
+      ${tombol('batch', '1 batch', 'biaya dibagi jumlah porsi')}
+    </div>
+    <p class="basis-ket">${basis === 'porsi'
+      ? `Tulis takaran untuk <b>satu porsi</b>. Ubah jumlah porsi jadi, kebutuhan bahan ikut naik sendiri dan HPP per porsi tetap.`
+      : `Tulis takaran untuk <b>satu batch penuh</b>. Ubah jumlah porsi jadi, biaya batch dibagi lebih banyak dan HPP per porsi turun.`}</p>
+  </div>`;
+}
+
 function editorHTML(p) {
   const h = hitung(p);
   const emojiOpt = EMOJI.map(e => `<option value="${e}"${e===p.emoji?' selected':''}>${e}</option>`).join('');
@@ -950,6 +1242,7 @@ function editorHTML(p) {
         <div class="field"><label class="lbl" for="e-jual">Harga jual per porsi</label>
           <input class="inp n" id="e-jual" data-p="hargaJual" inputmode="decimal" value="${esc(fmtN(num(p.hargaJual),0))}" placeholder="0"></div>
       </div>
+      ${basisHTML(p, h)}
     </div>
 
     <div class="editor-grid">
@@ -960,14 +1253,15 @@ function editorHTML(p) {
         <button class="btn ghost" data-aksi="tambah-bahan">+ Bahan</button>
       </div>
       ${(p.bahan||[]).length ? `<div class="rows">
-        <div class="row-h"><span>Bahan</span><span>Terpakai</span><span>Satuan</span><span>Biaya</span><span></span></div>
-        ${(p.bahan||[]).map(barisBahanHTML).join('')}
+        <div class="row-h"><span>Bahan</span><span>${h.basis === 'porsi' ? 'Per porsi' : 'Per batch'}</span><span>Satuan</span><span>Biaya</span><span></span></div>
+        ${(p.bahan||[]).map((it, i) => barisBahanHTML(it, i, h)).join('')}
       </div>` : `<div class="empty" style="padding:22px 0"><b>Belum ada bahan</b>Tekan “+ Bahan” untuk memilih dari pustaka.</div>`}
     </div>
 
     <div class="card">
       <div class="sec-head" style="margin-bottom:14px">
-        <div><h2>Biaya operasional</h2><p class="sub">Gas, listrik, air, tenaga kerja, sewa — untuk satu batch.</p></div>
+        <div><h2>Biaya operasional</h2><p class="sub">Gas, listrik, air, tenaga kerja, sewa — untuk <b>satu batch${
+          h.porsi > 1 ? ` (= ${fmtN(h.porsi,0)} porsi)` : ''}</b>, bukan per porsi.</p></div>
         <button class="btn ghost" data-aksi="tambah-ops">+ Biaya</button>
       </div>
       ${(p.ops||[]).length ? `<div class="rows">
@@ -1045,6 +1339,12 @@ function render() {
 }
 /* Saat mengetik, hanya bagian hasil yang digambar ulang — kolom isian tidak
    boleh ikut dibuat ulang, karena fokus dan posisi kursor akan hilang. */
+function renderBelanja() {
+  const p = S.produk[S.editId];
+  if (!p) return;
+  const box = $('#belanjaIsi');
+  if (box) box.innerHTML = belanjaIsiHTML(p, hitung(p));
+}
 function renderHasil() {
   const p = S.produk[S.editId];
   if (!p) return;
@@ -1056,8 +1356,13 @@ function renderHasil() {
     if (!it) return;
     const hasil = biayaBaris(it);
     const c = el.querySelector('.cost');
-    if (c) c.innerHTML = `${rp(hasil.rp)}<small>${hasil.err ? '' : 'per batch'}</small>`;
+    if (c) c.innerHTML = `${rp(hasil.rp * h.kali)}<small>${hasil.err ? '' : esc(ketBiaya(it, h))}</small>`;
   });
+  // Label kolom ikut basis, dan akibat menukar basis dihitung ulang.
+  const kolom = document.querySelector('#editor .row-h span:nth-child(2)');
+  if (kolom) kolom.textContent = h.basis === 'porsi' ? 'Per porsi' : 'Per batch';
+  const bw = document.querySelector('#editor .basis-wrap');
+  if (bw) bw.outerHTML = basisHTML(p, h);
   document.querySelectorAll('#editor [data-ops]').forEach(el => {
     const i = +el.dataset.ops, o = (p.ops||[])[i];
     if (!o) return;
@@ -1162,7 +1467,9 @@ function sheetPengaturan() {
 function produkBaru() {
   const id = uid();
   const urutan = Object.keys(S.produk).length + 1;
-  const p = { id, nama:'', emoji:'🍽️', porsi:0, hargaJual:0, bahan:[], ops:[], urutan };
+  // Produk baru memakai basis "porsi": menulis takaran satu porsi lebih alami,
+  // dan jumlah porsi tinggal diubah tanpa menghitung ulang bahannya.
+  const p = { id, nama:'', emoji:'🍽️', porsi:0, hargaJual:0, basis:'porsi', bahan:[], ops:[], urutan };
   S.produk[id] = p; simpanProduk(p);
   S.tab = 'produk'; S.editId = id; render();
   setTimeout(() => { const n = $('#e-nama'); if (n) n.focus(); }, 60);
@@ -1227,6 +1534,17 @@ document.addEventListener('click', e => {
     return;
   }
 
+  // Ganti basis resep. Angka bahan tidak disentuh — yang berubah hanya
+  // artinya, dan hasilnya langsung kelihatan supaya gampang dibatalkan.
+  const bs = t.closest('[data-basis]');
+  if (bs) { const p = S.produk[S.editId]; if (!p) return;
+    if (basisDari(p) === bs.dataset.basis) return;
+    p.basis = bs.dataset.basis; simpanProduk(p); render(); return; }
+
+  const rc = t.closest('[data-rencana]');
+  if (rc) { const p = S.produk[S.editId]; if (!p) return;
+    p.rencana = num(rc.dataset.rencana); simpanProduk(p); renderHasil(); return; }
+
   const pilih = t.closest('[data-pilih]');
   if (pilih) { tutupSheet(); tambahBarisBahan(pilih.dataset.pilih); return; }
 
@@ -1273,7 +1591,11 @@ document.addEventListener('input', e => {
   if (t.dataset.p) {                                    // kolom produk
     const p = S.produk[S.editId]; if (!p) return;
     p[t.dataset.p] = (t.dataset.p === 'nama' || t.dataset.p === 'emoji') ? t.value : num(t.value);
-    simpanProduk(p); renderHasil(); return;
+    simpanProduk(p);
+    // "Mau bikin berapa" hanya mengubah daftar belanja, bukan HPP. Digambar
+    // terpisah supaya kotak yang sedang diketik tidak ikut dibongkar.
+    if (t.dataset.p === 'rencana') renderBelanja(); else renderHasil();
+    return;
   }
   const baris = t.closest('[data-baris]');
   if (baris) { const p = S.produk[S.editId]; if (!p) return;
@@ -1308,7 +1630,7 @@ document.addEventListener('focusout', e => {
   const t = e.target;
   if (!t.matches('input.n')) return;
   const v = num(t.value);
-  const bulat = ['harga','rp','tarif','porsi','hargaJual','tarifListrik','upahJam','targetMargin'].includes(t.dataset.f || t.dataset.p || t.dataset.s);
+  const bulat = ['harga','rp','tarif','porsi','hargaJual','rencana','tarifListrik','upahJam','targetMargin'].includes(t.dataset.f || t.dataset.p || t.dataset.s);
   t.value = v ? fmtN(v, bulat ? 0 : 2) : '';
   // Ditunda satu putaran: blur ini bisa dipicu oleh render yang sedang berjalan.
   if (S.tundaRender) { S.tundaRender = false; setTimeout(render, 0); }
@@ -1321,7 +1643,7 @@ document.addEventListener('focusout', e => {
    =================================================================== */
 const KUNCI = 'w21-hpp-v1';
 /* Naikkan bersamaan dengan CACHE di sw.js setiap kali berkas ini berubah. */
-const VERSI = '6';
+const VERSI = '7';
 const BENIH = {
 "bahan": {
 "b-milo": {
