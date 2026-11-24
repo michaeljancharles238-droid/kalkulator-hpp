@@ -9,7 +9,7 @@
    karena isinya tidak berubah dan memuatnya dari cache jauh lebih cepat.
 
    Naikkan nomor versi di bawah setiap kali index.html berubah. */
-const CACHE = 'kalkulator-hpp-v4';
+const CACHE = 'kalkulator-hpp-v5';
 
 const ASET = [
   './',
@@ -31,6 +31,13 @@ self.addEventListener('install', e => {
       .then(() => self.skipWaiting())
       .catch(() => self.skipWaiting())
   );
+});
+
+/* Halaman menanyakan versi cache yang sedang melayani, lalu menampilkannya di
+   Pengaturan. Begitu nomornya beda dengan versi aplikasi, perangkat itu ketahuan
+   masih memegang berkas lama. */
+self.addEventListener('message', e => {
+  if (e.data === 'versi' && e.ports && e.ports[0]) e.ports[0].postMessage(CACHE);
 });
 
 self.addEventListener('activate', e => {
