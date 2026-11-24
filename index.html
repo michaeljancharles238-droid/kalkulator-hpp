@@ -393,6 +393,11 @@ tbody tr:hover { background:var(--kartu-2); }
 .pick-item:hover { background:var(--kartu-3); }
 .pick-item .nm { flex:1; min-width:0; font-size:13.5px; font-weight:600; }
 .pick-item .pr { font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:12px; color:var(--tinta-2); white-space:nowrap; }
+.pick-item .ops-ikon {
+  width:34px; height:34px; border-radius:10px; flex-shrink:0; font-size:17px;
+  display:grid; place-items:center; background:var(--kartu); border:1px solid var(--garis);
+}
+.pick-item .nm small { display:block; font-size:11px; font-weight:500; color:var(--tinta-3); margin-top:2px; line-height:1.45; }
 
 /* ===== BATANG PERBANDINGAN (HTML, bukan SVG — agar label ikut melipat di layar sempit) ===== */
 .hbars { display:flex; flex-direction:column; gap:12px; }
@@ -510,7 +515,8 @@ const SAT_KEYS = Object.keys(SAT);
 const EMOJI = ['🍽️','🥤','🧋','☕','🍵','🧊','🍜','🍚','🍗','🍲','🥟','🍛','🍢','🧁','🥣','🍱'];
 const SERI = ['--s1','--s2','--s3','--s4','--s5','--s6','--s7','--s8'];
 
-const SETEL_AWAL = { tarifListrik:1564, upahJam:12500, targetMargin:35, pembulatan:500 };
+const SETEL_AWAL = { tarifListrik:1564, upahJam:12500, targetMargin:35, pembulatan:500,
+                     hargaGas:25000, jamGas:40, tarifAir:5000, batchBulan:26 };
 
 const S = {
   bahan: {}, produk: {}, setel: { ...SETEL_AWAL },
@@ -533,10 +539,63 @@ function biayaBaris(it) {
     return { rp:0, err:`Satuan ${it.satuan} tidak sejenis dengan kemasan (${b.satuan}) — ganti salah satunya` };
   return { rp: hargaDasar(b) * num(it.jumlah) * SAT[it.satuan].f, err:null };
 }
+/* ===================================================================
+   BIAYA OPERASIONAL
+
+   Tiap cara hitung memakai angka yang memang diketahui pemilik warung —
+   harga tabung, lama nyala, umur alat — bukan rumus yang harus dihitung
+   sendiri di luar aplikasi lalu diketik hasilnya.
+
+   Angka yang berlaku untuk seluruh usaha (tarif listrik, harga gas, tarif
+   air, rata-rata batch per bulan) ada di Pengaturan, bukan diulang di tiap
+   baris. Yang di baris hanyalah yang berbeda-beda per produk.
+   =================================================================== */
+const OPS_MODE = {
+  rp:      { nama:'Rupiah',          ikon:'💵', ket:'ketik langsung' },
+  listrik: { nama:'Listrik',         ikon:'⚡', ket:'watt × menit × tarif listrik' },
+  gas:     { nama:'Gas LPG',         ikon:'🔥', ket:'dari harga tabung dan lama nyala' },
+  jam:     { nama:'Tenaga kerja',    ikon:'👤', ket:'menit × upah per jam' },
+  air:     { nama:'Air',             ikon:'💧', ket:'liter × tarif air' },
+  bulanan: { nama:'Biaya bulanan',   ikon:'🧾', ket:'sewa, wifi, iuran — dibagi batch sebulan' },
+  susut:   { nama:'Penyusutan alat', ikon:'🔧', ket:'harga alat ÷ umur pakainya' },
+};
+const OPS_URUT = ['listrik', 'gas', 'jam', 'air', 'bulanan', 'susut', 'rp'];
+
+/* Rupiah per menit nyala, dari harga satu tabung dan berapa lama tabung itu
+   habis. Dua angka yang bisa ditaksir pemiliknya sendiri — tidak perlu tahu
+   nilai kalori LPG. */
+function rpPerMenitGas() {
+  const jam = num(S.setel.jamGas);
+  return jam > 0 ? num(S.setel.hargaGas) / (jam * 60) : 0;
+}
+
 function biayaOps(o) {
-  if (o.mode === 'listrik') return (num(o.watt)/1000) * (num(o.menit)/60) * num(S.setel.tarifListrik);
-  if (o.mode === 'jam')     return (num(o.menit)/60) * num(o.tarif || S.setel.upahJam);
-  return num(o.rp);
+  const s = S.setel;
+  switch (o.mode) {
+    case 'listrik': return (num(o.watt)/1000) * (num(o.menit)/60) * num(s.tarifListrik);
+    case 'gas':     return rpPerMenitGas() * Math.max(num(o.tungku) || 1, 0) * num(o.menit);
+    case 'jam':     return (num(o.menit)/60) * num(o.tarif || s.upahJam);
+    case 'air':     return num(o.liter) * (num(s.tarifAir) / 1000);
+    case 'bulanan': return num(s.batchBulan) > 0 ? num(o.sebulan) / num(s.batchBulan) : 0;
+    case 'susut':   return (num(o.bulan) > 0 && num(s.batchBulan) > 0)
+                           ? num(o.harga) / (num(o.bulan) * num(s.batchBulan)) : 0;
+    default:        return num(o.rp);
+  }
+}
+
+/* Keterangan kecil di bawah angka biaya: menunjukkan asal angkanya,
+   supaya tidak ada hasil yang muncul tanpa bisa ditelusuri. */
+function ketOps(o) {
+  const s = S.setel;
+  switch (o.mode) {
+    case 'listrik': return `${fmtN(num(o.watt),0)} W × ${fmtN(num(o.menit),0)} mnt @ ${rp(s.tarifListrik)}/kWh`;
+    case 'gas':     return `${fmtN(Math.max(num(o.tungku)||1,0),0)} tungku × ${fmtN(num(o.menit),0)} mnt @ ${rpHalus(rpPerMenitGas())}/mnt`;
+    case 'jam':     return `${fmtN(num(o.menit),0)} menit × ${rp(num(o.tarif) || num(s.upahJam))}/jam`;
+    case 'air':     return `${fmtN(num(o.liter))} liter @ ${rp(s.tarifAir)}/m³`;
+    case 'bulanan': return `${rp(num(o.sebulan))} ÷ ${fmtN(num(s.batchBulan),0)} batch sebulan`;
+    case 'susut':   return `${rp(num(o.harga))} ÷ ${fmtN(num(o.bulan),0)} bln × ${fmtN(num(s.batchBulan),0)} batch`;
+    default:        return 'per batch';
+  }
 }
 /* Semua resep ditulis untuk SATU porsi: tambah jumlah porsi jadi, kebutuhan
    bahan ikut naik dan HPP per porsi tetap.
@@ -1020,24 +1079,30 @@ function barisBahanHTML(it, i, h) {
   </div>`;
 }
 
+/* Dua kolom angka per baris. Tiap cara hitung mengisi keduanya dengan apa
+   yang memang perlu ditanyakan; yang cuma butuh satu angka mengosongkan sisanya. */
+function isianOps(o) {
+  // title ikut diisi: begitu kolom terisi, isyarat di dalamnya hilang, jadi
+  // arti tiap kotak masih bisa dipastikan dengan menahan kursor di atasnya.
+  const kotak = (f, nilai, label, isyarat) =>
+    `<input class="inp n" data-f="${f}" inputmode="decimal" value="${esc(fmtN(nilai))}" aria-label="${esc(label)}" title="${esc(label)}" placeholder="${esc(isyarat)}">`;
+  switch (o.mode) {
+    case 'listrik': return kotak('watt', num(o.watt), 'Watt', 'watt') + kotak('menit', num(o.menit), 'Menit', 'menit');
+    case 'gas':     return kotak('tungku', num(o.tungku) || 1, 'Jumlah tungku', 'tungku') + kotak('menit', num(o.menit), 'Menit nyala', 'menit');
+    case 'jam':     return kotak('tarif', num(o.tarif) || num(S.setel.upahJam), 'Upah per jam', 'per jam') + kotak('menit', num(o.menit), 'Menit', 'menit');
+    case 'air':     return kotak('liter', num(o.liter), 'Liter terpakai', 'liter') + '<span></span>';
+    case 'bulanan': return kotak('sebulan', num(o.sebulan), 'Biaya sebulan', 'per bulan') + '<span></span>';
+    case 'susut':   return kotak('harga', num(o.harga), 'Harga alat', 'harga') + kotak('bulan', num(o.bulan), 'Umur pakai dalam bulan', 'bulan');
+    default:        return kotak('rp', num(o.rp), 'Biaya', 'rupiah') + '<span></span>';
+  }
+}
+
 function barisOpsHTML(o, i) {
   const biaya = biayaOps(o);
-  const modeOpt = [['rp','Rupiah'],['listrik','Listrik'],['jam','Tenaga kerja']]
-    .map(([k,v]) => `<option value="${k}"${k===o.mode?' selected':''}>${v}</option>`).join('');
-  let isian;
-  if (o.mode === 'listrik') {
-    isian = `<input class="inp n" data-f="watt" inputmode="decimal" value="${esc(fmtN(num(o.watt)))}" aria-label="Watt" placeholder="watt">
-             <input class="inp n" data-f="menit" inputmode="decimal" value="${esc(fmtN(num(o.menit)))}" aria-label="Menit" placeholder="menit">`;
-  } else if (o.mode === 'jam') {
-    isian = `<input class="inp n" data-f="tarif" inputmode="decimal" value="${esc(fmtN(num(o.tarif || S.setel.upahJam)))}" aria-label="Upah per jam" placeholder="per jam">
-             <input class="inp n" data-f="menit" inputmode="decimal" value="${esc(fmtN(num(o.menit)))}" aria-label="Menit" placeholder="menit">`;
-  } else {
-    isian = `<input class="inp n" data-f="rp" inputmode="decimal" value="${esc(fmtN(num(o.rp)))}" aria-label="Biaya" placeholder="rupiah">
-             <span></span>`;
-  }
-  const ket = o.mode === 'listrik' ? `${fmtN(num(o.watt),0)} W × ${fmtN(num(o.menit),0)} mnt @ ${rp(S.setel.tarifListrik)}/kWh`
-            : o.mode === 'jam' ? `${fmtN(num(o.menit),0)} menit kerja`
-            : 'per batch';
+  const modeOpt = OPS_URUT.map(k =>
+    `<option value="${k}"${k === o.mode ? ' selected' : ''}>${OPS_MODE[k].ikon} ${OPS_MODE[k].nama}</option>`).join('');
+  const isian = isianOps(o);
+  const ket = ketOps(o);
   return `<div class="row-i" data-ops="${i}">
     <span class="field" style="min-width:0">
       <input class="inp" data-f="nama" value="${esc(o.nama||'')}" placeholder="Nama biaya" aria-label="Nama biaya" style="margin-bottom:6px">
@@ -1341,10 +1406,8 @@ function renderHasil() {
   document.querySelectorAll('#editor [data-ops]').forEach(el => {
     const i = +el.dataset.ops, o = (p.ops||[])[i];
     if (!o) return;
-    const ket = o.mode === 'listrik' ? `${fmtN(num(o.watt),0)} W \u00d7 ${fmtN(num(o.menit),0)} mnt @ ${rp(S.setel.tarifListrik)}/kWh`
-              : o.mode === 'jam' ? `${fmtN(num(o.menit),0)} menit kerja` : 'per batch';
     const c = el.querySelector('.cost');
-    if (c) c.innerHTML = `${rp(biayaOps(o))}<small>${esc(ket)}</small>`;
+    if (c) c.innerHTML = `${rp(biayaOps(o))}<small>${esc(ketOps(o))}</small>`;
   });
 }
 function tempelBanner() {
@@ -1410,6 +1473,22 @@ function sheetPengaturan() {
     </div>
     <p class="sub" style="margin-top:16px">Tarif listrik dipakai untuk baris operasional bermode “Listrik”.
       Upah per jam jadi nilai awal baris “Tenaga kerja”, dan masih bisa diubah per produk.</p>
+
+    <p class="eyebrow" style="margin:22px 0 10px">Gas, air, dan biaya tetap</p>
+    <div class="grid2">
+      <div class="field"><label class="lbl" for="s-gas">Harga gas per tabung</label>
+        <input class="inp n" id="s-gas" data-s="hargaGas" inputmode="decimal" value="${esc(fmtN(num(s.hargaGas),0))}"></div>
+      <div class="field"><label class="lbl" for="s-jamgas">Tabung habis dalam (jam nyala)</label>
+        <input class="inp n" id="s-jamgas" data-s="jamGas" inputmode="decimal" value="${esc(fmtN(num(s.jamGas),0))}"></div>
+      <div class="field"><label class="lbl" for="s-air">Tarif air per m³</label>
+        <input class="inp n" id="s-air" data-s="tarifAir" inputmode="decimal" value="${esc(fmtN(num(s.tarifAir),0))}"></div>
+      <div class="field"><label class="lbl" for="s-batchbln">Rata-rata batch per bulan</label>
+        <input class="inp n" id="s-batchbln" data-s="batchBulan" inputmode="decimal" value="${esc(fmtN(num(s.batchBulan),0))}"></div>
+    </div>
+    <div class="note info" style="margin-top:14px"><span class="ic">🔥</span><span>
+      Dari dua angka gas di atas, satu menit nyala dihitung <b>${rpHalus(rpPerMenitGas())}</b>.
+      Taksir saja berapa jam satu tabung bertahan di warungmu — tidak perlu tepat, yang penting mendekati.
+      “Rata-rata batch per bulan” dipakai membagi biaya bulanan dan penyusutan alat.</span></div>
     <div style="margin-top:22px;border-top:1px dashed var(--garis-kuat);padding-top:18px">
       <p class="eyebrow" style="margin-bottom:10px">Cadangan data</p>
       <p class="sub" style="margin-bottom:14px">Satu file berisi seluruh produk, bahan, dan pengaturan. Berguna sebagai salinan di luar aplikasi — juga saat sinkronisasi aktif, kalau sewaktu-waktu ada yang terhapus.</p>
@@ -1463,10 +1542,33 @@ function tambahBarisBahan(bahanId) {
   p.bahan = (p.bahan || []).concat([{ bahanId, jumlah:0, satuan:(b && b.satuan) || 'gr' }]);
   simpanProduk(p); render();
 }
-function tambahBarisOps() {
+/* Baris baru langsung lahir dengan cara hitung yang dipilih dan nama bawaan,
+   jadi tidak perlu mengubah dropdown setiap kali menambah biaya. */
+function tambahBarisOps(mode) {
   const p = S.produk[S.editId]; if (!p) return;
-  p.ops = (p.ops || []).concat([{ nama:'', mode:'rp', rp:0, watt:0, menit:0 }]);
+  const m = OPS_MODE[mode] ? mode : 'rp';
+  const baris = { nama: m === 'rp' ? '' : OPS_MODE[m].nama, mode:m,
+                  rp:0, watt:0, menit:0, tungku:1, liter:0, sebulan:0, harga:0, bulan:0 };
+  if (m === 'jam') baris.tarif = num(S.setel.upahJam);
+  p.ops = (p.ops || []).concat([baris]);
   simpanProduk(p); render();
+  setTimeout(() => {
+    const el = document.querySelector('#editor [data-ops]:last-of-type .inp.n');
+    if (el) { el.focus(); el.select && el.select(); }
+  }, 60);
+}
+
+function sheetPilihOps() {
+  bukaSheet(`
+    <div class="sheet-head"><h2>Tambah biaya operasional</h2>
+      <button class="icon-btn" data-aksi="tutup-sheet" aria-label="Tutup">✕</button></div>
+    <p class="sub" style="margin-bottom:12px">Pilih cara hitungnya — kolom isian menyesuaikan sendiri.</p>
+    <div class="pick-list">
+      ${OPS_URUT.map(k => `<button class="pick-item" data-ops-baru="${k}">
+        <span class="ops-ikon">${OPS_MODE[k].ikon}</span>
+        <span class="nm">${OPS_MODE[k].nama}<small>${esc(OPS_MODE[k].ket)}</small></span>
+      </button>`).join('')}
+    </div>`);
 }
 
 /* Tanpa dialog bawaan peramban: tombol hapus minta tekan dua kali. */
@@ -1501,7 +1603,7 @@ document.addEventListener('click', e => {
       setTimeout(() => { const el = document.querySelector('#editor [data-baris]:last-of-type'); if (el) el.scrollIntoView({block:'center'}); }, 60); }
     else if (a === 'tutup-editor') { S.editId = null; render(); }
     else if (a === 'tambah-bahan') sheetPilihBahan();
-    else if (a === 'tambah-ops') tambahBarisOps();
+    else if (a === 'tambah-ops') sheetPilihOps();
     else if (a === 'hapus-produk') konfirmasi(aksi, 'Tekan lagi untuk hapus', () => {
       const id = S.editId; if (!id) return;
       delete S.produk[id]; tandaiHapus('produk', id); S.editId = null; render();
@@ -1512,6 +1614,9 @@ document.addEventListener('click', e => {
   const rc = t.closest('[data-rencana]');
   if (rc) { const p = S.produk[S.editId]; if (!p) return;
     p.rencana = num(rc.dataset.rencana); simpanProduk(p); renderHasil(); return; }
+
+  const ob = t.closest('[data-ops-baru]');
+  if (ob) { tutupSheet(); tambahBarisOps(ob.dataset.opsBaru); return; }
 
   const pilih = t.closest('[data-pilih]');
   if (pilih) { tutupSheet(); tambahBarisBahan(pilih.dataset.pilih); return; }
@@ -1598,7 +1703,8 @@ document.addEventListener('focusout', e => {
   const t = e.target;
   if (!t.matches('input.n')) return;
   const v = num(t.value);
-  const bulat = ['harga','rp','tarif','porsi','hargaJual','rencana','tarifListrik','upahJam','targetMargin'].includes(t.dataset.f || t.dataset.p || t.dataset.s);
+  const bulat = ['harga','rp','tarif','porsi','hargaJual','rencana','sebulan','bulan','tungku',
+                 'tarifListrik','upahJam','targetMargin','hargaGas','jamGas','tarifAir','batchBulan'].includes(t.dataset.f || t.dataset.p || t.dataset.s);
   t.value = v ? fmtN(v, bulat ? 0 : 2) : '';
   // Ditunda satu putaran: blur ini bisa dipicu oleh render yang sedang berjalan.
   if (S.tundaRender) { S.tundaRender = false; setTimeout(render, 0); }
@@ -1611,7 +1717,7 @@ document.addEventListener('focusout', e => {
    =================================================================== */
 const KUNCI = 'w21-hpp-v1';
 /* Naikkan bersamaan dengan CACHE di sw.js setiap kali berkas ini berubah. */
-const VERSI = '10';
+const VERSI = '11';
 const BENIH = {
 "bahan": {
 "b-milo": {
