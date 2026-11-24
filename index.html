@@ -112,6 +112,12 @@ body::before {
   background:var(--aksen); color:#fff; font-weight:800; font-size:12px; letter-spacing:.02em;
 }
 .mark b { font-size:15px; font-weight:800; letter-spacing:-.02em; white-space:nowrap; }
+/* Nomor versi selalu terlihat — supaya ketahuan kalau sebuah perangkat masih
+   menjalankan aplikasi lama dari cache. */
+.ver { font-size:10.5px; font-weight:700; letter-spacing:.03em; color:var(--tinta-3);
+  background:var(--kartu-2); border:1px solid var(--garis); border-radius:7px;
+  padding:2px 7px; white-space:nowrap; font-family:var(--mono); }
+.ver.beda { color:var(--hati-tinta); background:rgba(250,178,25,.14); border-color:transparent; }
 .tabs { display:flex; gap:2px; margin-left:auto; background:var(--kartu-2); border-radius:11px; padding:3px; }
 .tabs button {
   padding:7px 14px; border-radius:9px; font-size:13px; font-weight:600; color:var(--tinta-2);
@@ -346,6 +352,7 @@ tbody tr:hover { background:var(--kartu-2); }
     <div class="mark">
       <span class="glyph">HPP</span>
       <b>Kalkulator HPP</b>
+      <span class="ver" id="chipVersi" title="Versi aplikasi"></span>
     </div>
     <div class="tabs" role="tablist" id="tabs">
       <button role="tab" data-tab="ringkasan" aria-selected="true">Ringkasan</button>
@@ -1098,7 +1105,18 @@ function sheetPengaturan() {
       <input type="file" id="fileBackup" accept="application/json" hidden>
       <p id="statusBackup" style="font-size:12.5px;margin-top:12px;line-height:1.5"></p>
     </div>
+    <div style="margin-top:22px;border-top:1px dashed var(--garis-kuat);padding-top:18px">
+      <p class="eyebrow" style="margin-bottom:10px">Versi</p>
+      <div id="infoVersi" class="nota" style="margin-bottom:14px">
+        <div class="line"><span>Aplikasi</span><b>v${esc(VERSI)}</b></div>
+        <div class="line"><span>Cache offline</span><b id="versiCache">memeriksa…</b></div>
+      </div>
+      <div id="kabarVersi"></div>
+      <button class="btn ghost" data-aksi="periksa-versi" style="width:100%;justify-content:center">Periksa pembaruan</button>
+      <p id="statusVersi" style="font-size:12.5px;margin-top:10px;line-height:1.5"></p>
+    </div>
     <div style="margin-top:18px"><button class="btn primary" data-aksi="tutup-sheet" style="width:100%;justify-content:center">Selesai</button></div>`);
+  isiVersiCache();
   const f = $('#fileBackup');
   if (f) f.addEventListener('change', e => { if (e.target.files[0]) pulihkanBackup(e.target.files[0]); e.target.value = ''; });
 }
@@ -1267,6 +1285,8 @@ document.addEventListener('focusout', e => {
    tidak ada akun — jadi wajib export berkala lewat tombol Pengaturan.
    =================================================================== */
 const KUNCI = 'w21-hpp-v1';
+/* Naikkan bersamaan dengan CACHE di sw.js setiap kali berkas ini berubah. */
+const VERSI = '5';
 const BENIH = {
 "bahan": {
 "b-milo": {
@@ -1624,6 +1644,79 @@ document.addEventListener('click', e => {
 });
 
 /* ===================================================================
+   VERSI
+   Service worker menyimpan berkas untuk dipakai offline. Kalau perangkat masih
+   memegang berkas lama, aplikasinya terlihat "tidak berubah" padahal server
+   sudah diperbarui. Bagian ini membuat keadaan itu kelihatan, bukan ditebak.
+   =================================================================== */
+function tanyaVersiSW() {
+  return new Promise(selesai => {
+    const sw = navigator.serviceWorker;
+    if (!sw || !sw.controller) return selesai(null);
+    let sudah = false;
+    const ch = new MessageChannel();
+    const jam = setTimeout(() => { if (!sudah) { sudah = true; selesai(null); } }, 1500);
+    ch.port1.onmessage = e => { if (sudah) return; sudah = true; clearTimeout(jam); selesai(e.data); };
+    try { sw.controller.postMessage('versi', [ch.port2]); }
+    catch (e) { clearTimeout(jam); selesai(null); }
+  });
+}
+const nomorCache = nama => { const m = /-v(\d+)$/.exec(String(nama || '')); return m ? m[1] : null; };
+
+async function tandaiVersi() {
+  const c = $('#chipVersi');
+  if (!c) return;
+  c.textContent = 'v' + VERSI;
+  const n = nomorCache(await tanyaVersiSW());
+  const beda = !!(n && n !== VERSI);
+  c.classList.toggle('beda', beda);
+  c.title = beda
+    ? `Aplikasi v${VERSI}, cache offline v${n} — muat ulang halaman untuk menyamakan`
+    : `Versi aplikasi v${VERSI}`;
+}
+
+async function isiVersiCache() {
+  const n = nomorCache(await tanyaVersiSW());
+  const el = $('#versiCache');
+  if (el) el.textContent = n ? 'v' + n : 'tidak aktif';
+  const kabar = $('#kabarVersi');
+  if (kabar) {
+    kabar.innerHTML = (n && n !== VERSI)
+      ? `<div class="note warn" style="margin-bottom:12px"><span class="ic">⚠️</span><span>
+          <b>Perangkat ini masih memegang berkas lama.</b> Tekan tombol di bawah, lalu muat ulang halaman.
+          Kalau masih sama, tekan Ctrl+Shift+R.</span></div>`
+      : '';
+  }
+}
+
+async function periksaPembaruan() {
+  const s = $('#statusVersi');
+  const tulis = (t, warna) => { if (s) { s.textContent = t; s.style.color = warna; } };
+  if (!navigator.serviceWorker) { tulis('Peramban ini tidak memakai cache offline.', 'var(--tinta-2)'); return; }
+  tulis('Memeriksa…', 'var(--tinta-2)');
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (reg) await reg.update();
+    await new Promise(r => setTimeout(r, 900));
+    await isiVersiCache();
+    const n = nomorCache(await tanyaVersiSW());
+    if (n && n !== VERSI) tulis('Pembaruan sedang diunduh. Muat ulang halaman sebentar lagi.', 'var(--hati-tinta)');
+    else tulis('Sudah versi terbaru.', 'var(--baik-tinta)');
+  } catch (e) {
+    tulis('Gagal memeriksa. Muat ulang halaman dengan Ctrl+Shift+R.', 'var(--kritis-tinta)');
+  }
+}
+
+/* Service worker baru mengambil alih: tandai supaya terlihat perlu muat ulang.
+   Sengaja tidak memuat ulang sendiri — bisa memotong isian yang sedang diketik. */
+if (navigator.serviceWorker) {
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    tandaiVersi();
+    if (!$('#scrim').hidden) isiVersiCache();
+  });
+}
+
+/* ===================================================================
    BACKUP & RESTORE
    =================================================================== */
 function unduhBackup() {
@@ -1944,6 +2037,7 @@ document.addEventListener('click', e => {
   if (!a) return;
   if (a.dataset.aksi === 'masuk') masukGoogle();
   else if (a.dataset.aksi === 'keluar') keluarAkun();
+  else if (a.dataset.aksi === 'periksa-versi') periksaPembaruan();
 });
 
 /* ===================================================================
@@ -1951,6 +2045,7 @@ document.addEventListener('click', e => {
    =================================================================== */
 muatAwal();
 pasangTema(temaSekarang());
+tandaiVersi();
 aturStatus(FIREBASE_CONFIG ? 'memuat' : 'mati');
 mulaiSinkron();
 </script>
