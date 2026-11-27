@@ -393,6 +393,22 @@ tbody tr:hover { background:var(--kartu-2); }
 .pick-item:hover { background:var(--kartu-3); }
 .pick-item .nm { flex:1; min-width:0; font-size:13.5px; font-weight:600; }
 .pick-item .pr { font-family:var(--mono); font-variant-numeric:tabular-nums; font-size:12px; color:var(--tinta-2); white-space:nowrap; }
+/* ===== KOTAK PENCARIAN (pustaka bahan & daftar produk) ===== */
+.cari-wrap { position:relative; display:flex; align-items:center; margin-bottom:14px; }
+.cari-ikon { position:absolute; left:13px; color:var(--tinta-3); pointer-events:none; }
+.cari-inp { padding-left:38px; padding-right:96px; }
+.cari-inp::-webkit-search-cancel-button { display:none; }
+.cari-hapus {
+  position:absolute; right:62px; width:24px; height:24px; border-radius:7px;
+  display:grid; place-items:center; font-size:12px; color:var(--tinta-3); background:var(--kartu-2);
+}
+.cari-hapus:hover { color:var(--tinta); background:var(--kartu-3); }
+.cari-jml {
+  position:absolute; right:13px; font-size:10.5px; font-weight:650; color:var(--tinta-3);
+  font-family:var(--mono); font-variant-numeric:tabular-nums; pointer-events:none; white-space:nowrap;
+}
+@media (max-width:420px) { .cari-inp { padding-right:84px; } .cari-hapus { right:56px; } }
+
 .pick-item .ops-ikon {
   width:34px; height:34px; border-radius:10px; flex-shrink:0; font-size:17px;
   display:grid; place-items:center; background:var(--kartu); border:1px solid var(--garis);
@@ -499,6 +515,10 @@ function num(v) {
   return isFinite(n) ? (minus ? -n : n) : 0;
 }
 const fmtN = (n, d) => new Intl.NumberFormat('id-ID', { maximumFractionDigits: d==null?2:d }).format(n||0);
+/* Untuk kolom isian: nol ditulis kosong, bukan "0". Angka nol di kotak isian
+   hanya jadi penghalang — harus dihapus dulu sebelum bisa mengetik. Kosong
+   lebih jujur juga: memang belum diisi. Saat dibaca, kosong tetap bernilai 0. */
+const fmtIsi = (n, d) => (num(n) === 0 ? '' : fmtN(n, d));
 const rp  = n => 'Rp ' + fmtN(Math.round(n||0), 0);
 /* Harga satuan sering di bawah seribu rupiah — di situ desimal masih berarti. */
 const rpHalus = n => { const v = n||0; return 'Rp ' + fmtN(v, Math.abs(v) < 100 ? 2 : 0); };
@@ -521,7 +541,72 @@ const SETEL_AWAL = { tarifListrik:1564, upahJam:12500, targetMargin:35, pembulat
 const S = {
   bahan: {}, produk: {}, setel: { ...SETEL_AWAL },
   tab: 'ringkasan', editId: null, boleh: true, siap: false, tundaRender: false,
+  cariBahan: '', cariProduk: '',
 };
+
+/* ===================================================================
+   PENCARIAN
+
+   Menyaring tanpa menggambar ulang: baris yang tidak cocok disembunyikan,
+   bukan dibuang. Mengetik jadi tidak memicu render — kotak isian yang sedang
+   dipakai tidak ikut dibongkar, dan kursor tetap di tempatnya.
+   Kata kuncinya disimpan di S supaya saringan bertahan kalau ada render
+   dari sebab lain (mis. perubahan masuk dari perangkat lain).
+   =================================================================== */
+function kotakCariHTML(kunci, isyarat, jumlah) {
+  return `<div class="cari-wrap">
+    <svg class="cari-ikon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    <input class="inp cari-inp" data-cari="${kunci}" value="${esc(S[kunci] || '')}"
+           placeholder="${esc(isyarat)}" aria-label="${esc(isyarat)}" autocomplete="off" type="search">
+    <button class="cari-hapus" data-hapus-cari="${kunci}" aria-label="Hapus pencarian"${S[kunci] ? '' : ' hidden'}>✕</button>
+    <span class="cari-jml" data-cari-jml="${kunci}" aria-live="polite">${jumlah}</span>
+  </div>`;
+}
+
+const cocokCari = (teks, q) => String(teks || '').toLowerCase().includes(q);
+
+function terapkanCari() {
+  // Pustaka bahan — nama dibaca dari kolom isiannya, jadi hasil ketikan yang
+  // belum sempat digambar ulang pun ikut terbaca.
+  const qb = String(S.cariBahan || '').toLowerCase().trim();
+  const barisBahan = document.querySelectorAll('#v-bahan .row-i[data-bahan]');
+  let adaBahan = 0;
+  barisBahan.forEach(el => {
+    const isian = el.querySelector('[data-f="nama"]');
+    const nama = isian ? isian.value : (S.bahan[el.dataset.bahan] || {}).nama;
+    const tampil = !qb || cocokCari(nama, qb);
+    el.hidden = !tampil;
+    if (tampil) adaBahan++;
+  });
+  setelahCari('bahan', barisBahan.length, adaBahan, qb);
+
+  // Daftar produk
+  const qp = String(S.cariProduk || '').toLowerCase().trim();
+  const kartu = document.querySelectorAll('#v-produk .pcard[data-buka]');
+  let adaProduk = 0;
+  kartu.forEach(el => {
+    const nama = (S.produk[el.dataset.buka] || {}).nama;
+    const tampil = !qp || cocokCari(nama, qp);
+    el.hidden = !tampil;
+    if (tampil) adaProduk++;
+  });
+  setelahCari('produk', kartu.length, adaProduk, qp);
+}
+
+/* Jumlah hasil, tombol hapus, dan pesan saat tidak ada yang cocok. */
+function setelahCari(jenis, total, cocok, q) {
+  const kunci = jenis === 'bahan' ? 'cariBahan' : 'cariProduk';
+  const jml = document.querySelector(`[data-cari-jml="${kunci}"]`);
+  if (jml) jml.textContent = q ? `${cocok} dari ${total}` : `${total}`;
+  const hapus = document.querySelector(`[data-hapus-cari="${kunci}"]`);
+  if (hapus) hapus.hidden = !q;
+  const kosong = document.querySelector(`[data-cari-kosong="${jenis}"]`);
+  if (kosong) {
+    kosong.hidden = !(q && cocok === 0);
+    const isi = kosong.querySelector('.empty');
+    if (isi && q && cocok === 0) isi.innerHTML = `<b>Tidak ada yang cocok</b>Tidak ada ${jenis} bernama “${esc(q)}”.`;
+  }
+}
 
 /* ===================================================================
    PERHITUNGAN
@@ -1044,7 +1129,9 @@ function renderProduk() {
     <div class="sec-head"><div><h1>Produk</h1>
       <p class="sub">Batang abu-abu bagian HPP, batang berwarna bagian laba.</p></div>
       <button class="btn primary" data-aksi="produk-baru">+ Produk baru</button></div>
+    ${kotakCariHTML('cariProduk', 'Cari produk…', semua.length)}
     <div class="pgrid">${kartu}</div>
+    <div class="card" data-cari-kosong="produk" hidden><div class="empty"></div></div>
   </div>`;
 }
 
@@ -1068,7 +1155,7 @@ function barisBahanHTML(it, i, h) {
       <div style="font-size:11px;color:var(--tinta-3)">${b.nama ? rpHalus(hargaDasar(b)) + ' / ' + b.satuan : ''}</div>
     </span>
     <span class="amt-wrap">
-      <input class="inp n" data-f="jumlah" inputmode="decimal" value="${esc(fmtN(num(it.jumlah)))}" aria-label="Jumlah terpakai">
+      <input class="inp n" data-f="jumlah" inputmode="decimal" value="${esc(fmtIsi(num(it.jumlah)))}" aria-label="Jumlah terpakai" placeholder="jumlah">
       <select class="inp" data-f="satuan" aria-label="Satuan">${satuanOpt}</select>
     </span>
     <span class="cost">${rp(hasil.rp)}<small>${hasil.err ? '' : esc(ketBiaya(it, h))}</small></span>
@@ -1085,7 +1172,7 @@ function isianOps(o) {
   // title ikut diisi: begitu kolom terisi, isyarat di dalamnya hilang, jadi
   // arti tiap kotak masih bisa dipastikan dengan menahan kursor di atasnya.
   const kotak = (f, nilai, label, isyarat) =>
-    `<input class="inp n" data-f="${f}" inputmode="decimal" value="${esc(fmtN(nilai))}" aria-label="${esc(label)}" title="${esc(label)}" placeholder="${esc(isyarat)}">`;
+    `<input class="inp n" data-f="${f}" inputmode="decimal" value="${esc(fmtIsi(nilai))}" aria-label="${esc(label)}" title="${esc(label)}" placeholder="${esc(isyarat)}">`;
   switch (o.mode) {
     case 'listrik': return kotak('watt', num(o.watt), 'Watt', 'watt') + kotak('menit', num(o.menit), 'Menit', 'menit');
     case 'gas':     return kotak('tungku', num(o.tungku) || 1, 'Jumlah tungku', 'tungku') + kotak('menit', num(o.menit), 'Menit nyala', 'menit');
@@ -1283,9 +1370,9 @@ function editorHTML(p) {
       </div>
       <div class="grid2" style="margin-top:14px">
         <div class="field"><label class="lbl" for="e-porsi">Porsi jadi per batch</label>
-          <input class="inp n" id="e-porsi" data-p="porsi" inputmode="decimal" value="${esc(fmtN(num(p.porsi),0))}" placeholder="0"></div>
+          <input class="inp n" id="e-porsi" data-p="porsi" inputmode="decimal" value="${esc(fmtIsi(num(p.porsi),0))}" placeholder="porsi"></div>
         <div class="field"><label class="lbl" for="e-jual">Harga jual per porsi</label>
-          <input class="inp n" id="e-jual" data-p="hargaJual" inputmode="decimal" value="${esc(fmtN(num(p.hargaJual),0))}" placeholder="0"></div>
+          <input class="inp n" id="e-jual" data-p="hargaJual" inputmode="decimal" value="${esc(fmtIsi(num(p.hargaJual),0))}" placeholder="harga"></div>
       </div>
     </div>
 
@@ -1340,9 +1427,9 @@ function renderBahan() {
             ${rpHalus(hargaDasar(b))} / ${esc(b.satuan)} · dipakai di ${dipakai[b.id]||0} produk</div>
         </span>
         <span class="amt-wrap">
-          <input class="inp n" data-f="isi" inputmode="decimal" value="${esc(fmtN(num(b.isi)))}" aria-label="Isi kemasan">
+          <input class="inp n" data-f="isi" inputmode="decimal" value="${esc(fmtIsi(num(b.isi)))}" aria-label="Isi kemasan" placeholder="isi">
           <select class="inp" data-f="satuan" aria-label="Satuan">${SAT_KEYS.map(k=>`<option value="${k}"${k===b.satuan?' selected':''}>${k}</option>`).join('')}</select>
-          <input class="inp n" data-f="harga" inputmode="decimal" value="${esc(fmtN(num(b.harga),0))}" aria-label="Harga kemasan">
+          <input class="inp n" data-f="harga" inputmode="decimal" value="${esc(fmtIsi(num(b.harga),0))}" aria-label="Harga kemasan" placeholder="harga">
         </span>
         <button class="del" data-hapus-pustaka="${esc(b.id)}" aria-label="Hapus bahan">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 7h14M9.5 7V5h5v2M7 7l1 13h8l1-13"/></svg>
@@ -1356,7 +1443,9 @@ function renderBahan() {
     <div class="sec-head"><div><h1>Pustaka bahan</h1>
       <p class="sub">Satu bahan dicatat sekali. Harga naik? Ubah di sini, semua produk ikut terhitung ulang.</p></div>
       <button class="btn primary" data-aksi="bahan-baru">+ Bahan</button></div>
+    ${semua.length ? kotakCariHTML('cariBahan', 'Cari bahan…', semua.length) : ''}
     <div class="card">${isi}</div>
+    <div class="card" data-cari-kosong="bahan" hidden><div class="empty"></div></div>
   </div>`;
 }
 
@@ -1371,16 +1460,20 @@ function render() {
   if (sedangRender) return;
   sedangRender = true;
   try {
-    document.querySelectorAll('#tabs button').forEach(b =>
-      b.setAttribute('aria-selected', String(b.dataset.tab === S.tab)));
-    ['ringkasan','produk','bahan'].forEach(v => { $('#v-' + v).hidden = (v !== S.tab); });
-    if (S.tab === 'ringkasan') renderRingkasan();
-    else if (S.tab === 'produk') renderProduk();
-    else renderBahan();
-    if (!S.boleh) tempelBanner();
-  } finally {
-    sedangRender = false;
-  }
+    renderIsi();
+  } finally { sedangRender = false; }
+  // Saringan dipasang ulang setelah isi digambar, supaya hasil pencarian
+  // bertahan walau layar sempat digambar ulang dari sebab lain.
+  terapkanCari();
+}
+function renderIsi() {
+  document.querySelectorAll('#tabs button').forEach(b =>
+    b.setAttribute('aria-selected', String(b.dataset.tab === S.tab)));
+  ['ringkasan','produk','bahan'].forEach(v => { $('#v-' + v).hidden = (v !== S.tab); });
+  if (S.tab === 'ringkasan') renderRingkasan();
+  else if (S.tab === 'produk') renderProduk();
+  else renderBahan();
+  if (!S.boleh) tempelBanner();
 }
 /* Saat mengetik, hanya bagian hasil yang digambar ulang — kolom isian tidak
    boleh ikut dibuat ulang, karena fokus dan posisi kursor akan hilang. */
@@ -1461,11 +1554,11 @@ function sheetPengaturan() {
     <p class="eyebrow" style="margin-bottom:10px">Perhitungan</p>
     <div class="grid2">
       <div class="field"><label class="lbl" for="s-tarif">Tarif listrik per kWh</label>
-        <input class="inp n" id="s-tarif" data-s="tarifListrik" inputmode="decimal" value="${esc(fmtN(num(s.tarifListrik),0))}"></div>
+        <input class="inp n" id="s-tarif" data-s="tarifListrik" inputmode="decimal" value="${esc(fmtIsi(num(s.tarifListrik),0))}" placeholder="${esc(fmtN(SETEL_AWAL.tarifListrik,0))}"></div>
       <div class="field"><label class="lbl" for="s-upah">Upah tenaga kerja per jam</label>
-        <input class="inp n" id="s-upah" data-s="upahJam" inputmode="decimal" value="${esc(fmtN(num(s.upahJam),0))}"></div>
+        <input class="inp n" id="s-upah" data-s="upahJam" inputmode="decimal" value="${esc(fmtIsi(num(s.upahJam),0))}" placeholder="${esc(fmtN(SETEL_AWAL.upahJam,0))}"></div>
       <div class="field"><label class="lbl" for="s-target">Target margin</label>
-        <input class="inp n" id="s-target" data-s="targetMargin" inputmode="decimal" value="${esc(fmtN(num(s.targetMargin),0))}"></div>
+        <input class="inp n" id="s-target" data-s="targetMargin" inputmode="decimal" value="${esc(fmtIsi(num(s.targetMargin),0))}" placeholder="${esc(fmtN(SETEL_AWAL.targetMargin,0))}"></div>
       <div class="field"><label class="lbl" for="s-bulat">Pembulatan harga jual</label>
         <select class="inp" id="s-bulat" data-s="pembulatan">
           ${[100,500,1000,2000].map(v => `<option value="${v}"${num(s.pembulatan)===v?' selected':''}>Rp ${fmtN(v,0)}</option>`).join('')}
@@ -1477,13 +1570,13 @@ function sheetPengaturan() {
     <p class="eyebrow" style="margin:22px 0 10px">Gas, air, dan biaya tetap</p>
     <div class="grid2">
       <div class="field"><label class="lbl" for="s-gas">Harga gas per tabung</label>
-        <input class="inp n" id="s-gas" data-s="hargaGas" inputmode="decimal" value="${esc(fmtN(num(s.hargaGas),0))}"></div>
+        <input class="inp n" id="s-gas" data-s="hargaGas" inputmode="decimal" value="${esc(fmtIsi(num(s.hargaGas),0))}" placeholder="${esc(fmtN(SETEL_AWAL.hargaGas,0))}"></div>
       <div class="field"><label class="lbl" for="s-jamgas">Tabung habis dalam (jam nyala)</label>
-        <input class="inp n" id="s-jamgas" data-s="jamGas" inputmode="decimal" value="${esc(fmtN(num(s.jamGas),0))}"></div>
+        <input class="inp n" id="s-jamgas" data-s="jamGas" inputmode="decimal" value="${esc(fmtIsi(num(s.jamGas),0))}" placeholder="${esc(fmtN(SETEL_AWAL.jamGas,0))}"></div>
       <div class="field"><label class="lbl" for="s-air">Tarif air per m³</label>
-        <input class="inp n" id="s-air" data-s="tarifAir" inputmode="decimal" value="${esc(fmtN(num(s.tarifAir),0))}"></div>
+        <input class="inp n" id="s-air" data-s="tarifAir" inputmode="decimal" value="${esc(fmtIsi(num(s.tarifAir),0))}" placeholder="${esc(fmtN(SETEL_AWAL.tarifAir,0))}"></div>
       <div class="field"><label class="lbl" for="s-batchbln">Rata-rata batch per bulan</label>
-        <input class="inp n" id="s-batchbln" data-s="batchBulan" inputmode="decimal" value="${esc(fmtN(num(s.batchBulan),0))}"></div>
+        <input class="inp n" id="s-batchbln" data-s="batchBulan" inputmode="decimal" value="${esc(fmtIsi(num(s.batchBulan),0))}" placeholder="${esc(fmtN(SETEL_AWAL.batchBulan,0))}"></div>
     </div>
     <div class="note info" style="margin-top:14px"><span class="ic">🔥</span><span>
       Dari dua angka gas di atas, satu menit nyala dihitung <b>${rpHalus(rpPerMenitGas())}</b>.
@@ -1525,6 +1618,7 @@ function produkBaru() {
   // dan jumlah porsi tinggal diubah tanpa menghitung ulang bahannya.
   const p = { id, nama:'', emoji:'🍽️', porsi:0, hargaJual:0, basis:'porsi', bahan:[], ops:[], urutan };
   S.produk[id] = p; simpanProduk(p);
+  S.cariProduk = '';          // kalau tidak, baris baru yang masih tanpa nama langsung tersaring
   S.tab = 'produk'; S.editId = id; render();
   setTimeout(() => { const n = $('#e-nama'); if (n) n.focus(); }, 60);
 }
@@ -1532,6 +1626,7 @@ function bahanBaru(fokus) {
   const id = uid();
   const b = { id, nama:'', isi:0, satuan:'gr', harga:0 };
   S.bahan[id] = b; simpanBahan(b);
+  S.cariBahan = '';           // kalau tidak, baris baru yang masih tanpa nama langsung tersaring
   if (fokus) { S.tab = 'bahan'; render();
     setTimeout(() => { const el = document.querySelector(`[data-bahan="${id}"] [data-f="nama"]`); if (el) el.focus(); }, 60); }
   return b;
@@ -1615,6 +1710,15 @@ document.addEventListener('click', e => {
   if (rc) { const p = S.produk[S.editId]; if (!p) return;
     p.rencana = num(rc.dataset.rencana); simpanProduk(p); renderHasil(); return; }
 
+  const hc = t.closest('[data-hapus-cari]');
+  if (hc) {
+    S[hc.dataset.hapusCari] = '';
+    const kotak = document.querySelector(`[data-cari="${hc.dataset.hapusCari}"]`);
+    if (kotak) { kotak.value = ''; kotak.focus(); }
+    terapkanCari();
+    return;
+  }
+
   const ob = t.closest('[data-ops-baru]');
   if (ob) { tutupSheet(); tambahBarisOps(ob.dataset.opsBaru); return; }
 
@@ -1654,6 +1758,12 @@ document.addEventListener('click', e => {
 document.addEventListener('input', e => {
   const t = e.target;
   if (!t.matches('input, select')) return;
+
+  if (t.dataset.cari) {                                 // kotak pencarian
+    S[t.dataset.cari] = t.value;
+    terapkanCari();
+    return;
+  }
 
   if (t.dataset.s) {                                    // pengaturan
     S.setel[t.dataset.s] = t.dataset.s === 'pembulatan' ? num(t.value) : num(t.value);
@@ -1717,7 +1827,7 @@ document.addEventListener('focusout', e => {
    =================================================================== */
 const KUNCI = 'w21-hpp-v1';
 /* Naikkan bersamaan dengan CACHE di sw.js setiap kali berkas ini berubah. */
-const VERSI = '11';
+const VERSI = '12';
 const BENIH = {
 "bahan": {
 "b-milo": {
