@@ -35,6 +35,7 @@ img { max-width:100%; }
 
   --baik:#0ca30c; --hati:#fab219; --serius:#ec835a; --kritis:#d03b3b;
   --baik-tinta:#006300; --hati-tinta:#8a5c00; --kritis-tinta:#b02f2f;
+  --sah:#2b7ce9;
 
   --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
   --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --s8:#e34948;
@@ -47,6 +48,7 @@ img { max-width:100%; }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
+    --sah:#4b95f5;
     --kertas:#121110; --kartu:#1b1a17; --kartu-2:#232120; --kartu-3:#2b2926;
     --garis:#2d2b26; --garis-kuat:#403d35;
     --tinta:#f2efe8; --tinta-2:#aea89a; --tinta-3:#837d6f;
@@ -60,6 +62,7 @@ img { max-width:100%; }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
+  --sah:#4b95f5;
   --kertas:#121110; --kartu:#1b1a17; --kartu-2:#232120; --kartu-3:#2b2926;
   --garis:#2d2b26; --garis-kuat:#403d35;
   --tinta:#f2efe8; --tinta-2:#aea89a; --tinta-3:#837d6f;
@@ -283,6 +286,58 @@ select.inp { appearance:none; padding-right:26px;
 }
 .rh-produk button:hover { border-color:var(--aksen); color:var(--aksen-tinta); }
 .rh-produk button:active { transform:scale(.97); }
+
+/* ===== KUNCI PRODUK ===== */
+.kunci-bar {
+  margin-bottom:16px; padding:14px 16px; border-radius:16px;
+  background:rgba(12,163,12,.08); border:1px solid rgba(12,163,12,.3);
+}
+.kunci-bar.geser { background:rgba(250,178,25,.08); border-color:rgba(250,178,25,.4); }
+.kb-baris { display:flex; align-items:flex-start; gap:12px; }
+.kb-ikon { font-size:17px; line-height:1.4; flex-shrink:0; }
+.kb-teks { flex:1; min-width:0; }
+.kb-teks b { display:block; font-size:13.5px; font-weight:750; color:var(--baik-tinta); letter-spacing:-.01em; }
+.kunci-bar.geser .kb-teks b { color:var(--hati-tinta); }
+.kb-teks small { display:block; font-size:11.5px; color:var(--tinta-2); line-height:1.6; margin-top:3px; }
+.kb-teks small b { display:inline; font-size:inherit; color:var(--tinta); }
+.kb-kini { color:var(--hati-tinta) !important; }
+.kb-rinci { padding-top:2px; }
+.kb-buka {
+  flex-shrink:0; padding:8px 14px; border-radius:11px; font-size:12px; font-weight:650;
+  color:var(--tinta-2); background:var(--kartu); border:1px solid var(--garis-kuat);
+}
+.kb-buka:hover { color:var(--tinta); }
+.kb-buka:active { transform:scale(.97); }
+.kb-tanya {
+  display:flex; align-items:center; justify-content:space-between; gap:10px 14px; flex-wrap:wrap;
+  margin-top:12px; padding-top:12px; border-top:1px solid rgba(250,178,25,.3);
+}
+
+/* Isian yang beku tetap terbaca jelas, hanya tidak bisa diubah. Sengaja tidak
+   dipudarkan — angka yang sudah divalidasi justru yang paling perlu kelihatan.
+   Garis putus-putus yang menandainya, bukan warna yang redup. */
+#editor.beku .inp:disabled, #editor.beku select:disabled {
+  background:var(--kartu); color:var(--tinta); opacity:1;
+  border-style:dashed; cursor:default;
+}
+#editor.beku select:disabled { background-image:none; padding-right:13px; }
+.card .inp:disabled { opacity:1; color:var(--tinta); cursor:default; }
+
+.pcard.terkunci { border-color:color-mix(in srgb, var(--sah) 42%, transparent); }
+
+/* Lencana terverifikasi */
+.lencana { color:var(--sah); flex-shrink:0; vertical-align:-2px; }
+.lencana.geser { color:var(--hati); }
+.pname .lencana, .hb-lab .lencana { margin-left:5px; }
+.kb-ikon .lencana { vertical-align:-3px; }
+.tile.valid .v { color:var(--sah); display:flex; align-items:baseline; gap:8px; }
+.tile.valid .v-geser { font-size:14px; font-weight:700; color:var(--hati-tinta); letter-spacing:0; }
+@media (max-width:560px) {
+  .kb-baris { flex-wrap:wrap; }
+  .kb-buka { width:100%; margin-top:4px; }
+  .kb-tanya .rh-aksi { flex:1 1 100%; }
+  .kb-tanya .rh-batal, .kb-tanya .rh-ya { flex:1; }
+}
 .row-note { grid-column:1/-1; font-size:11.5px; color:var(--kritis-tinta); padding:0 2px; }
 @media (max-width:640px) {
   .row-h { display:none; }
@@ -574,7 +629,7 @@ const SETEL_AWAL = { tarifListrik:1564, upahJam:12500, targetMargin:35, pembulat
 const S = {
   bahan: {}, produk: {}, setel: { ...SETEL_AWAL },
   tab: 'ringkasan', editId: null, boleh: true, siap: false, tundaRender: false,
-  cariBahan: '', cariProduk: '', hapusBahan: null,
+  cariBahan: '', cariProduk: '', hapusBahan: null, bukaKunci: null,
 };
 
 /* ===================================================================
@@ -964,7 +1019,7 @@ function batangHTML(items, opt) {
     const kelas = 'hb-track' + (adaMinus ? ' zero' : '') + (tgtPos != null ? ' tgt' : '');
     const gaya = `--zero:${nolPos}%` + (tgtPos != null ? `;--tgt:${tgtPos}%` : '');
     return `<div class="hb">
-      <span class="hb-lab"><span>${i.emoji ? i.emoji + ' ' : ''}${esc(i.label)}</span></span>
+      <span class="hb-lab"><span>${i.emoji ? i.emoji + ' ' : ''}${esc(i.label)}</span>${i.lencana || ''}</span>
       <div class="${kelas}" style="${gaya}"><i style="left:${kiri}%;width:${lebar}%;background:${i.color}"></i></div>
       <span class="hb-end"><b class="hb-val">${esc(i.text)}</b>${i.chip || ''}</span>
     </div>`;
@@ -1033,6 +1088,10 @@ function renderRingkasan() {
   const marginRata = siap.length ? siap.reduce((s,r) => s + r.h.margin, 0) / siap.length : 0;
   const terbaik = siap.slice().sort((a,b) => b.h.laba - a.h.laba)[0];
   const perhatian = diisi.filter(r => (notes.get(r.p.id)||[]).some(n => n.k === 'bad' || n.k === 'warn')).length;
+  // Produk yang sudah dikunci: yang masih utuh dan yang harganya sudah bergeser
+  const sah = rows.filter(r => terkunci(r.p));
+  const sahGeser = sah.filter(r => geserKunci(r.p).beda).length;
+  const sahUtuh = sah.length - sahGeser;
 
   const tiles = `<div class="tiles">
     <div class="tile"><div class="k">Produk siap hitung</div><div class="v num">${siap.length}</div>
@@ -1046,6 +1105,11 @@ function renderRingkasan() {
     <div class="tile ${perhatian?'warn':'ok'}"><div class="k">Perlu dicek</div>
       <div class="v num">${perhatian}</div>
       <div class="d">${perhatian ? 'Produk dengan catatan' : 'Tidak ada yang janggal'}</div></div>
+    <div class="tile valid"><div class="k">Terbukti valid</div>
+      <div class="v num">${sahUtuh}${sahGeser ? `<span class="v-geser">+${sahGeser}</span>` : ''}</div>
+      <div class="d">${sah.length
+        ? `Dikunci setelah diperiksa${sahGeser ? ` · ${sahGeser} perlu dikunci ulang` : ''}`
+        : 'Belum ada produk yang dikunci'}</div></div>
   </div>`;
 
   let grafik = '';
@@ -1053,13 +1117,13 @@ function renderRingkasan() {
     const urutLaba = siap.slice().sort((a,b) => b.h.laba - a.h.laba);
     const labaItems = urutLaba.map(r => {
       const st = statusMargin(r.h);
-      return { label:r.p.nama, emoji:r.p.emoji, value:r.h.laba, color:'var(--s1)', text:rp(r.h.laba),
+      return { label:r.p.nama, emoji:r.p.emoji, lencana:lencanaValid(r.p, 14), value:r.h.laba, color:'var(--s1)', text:rp(r.h.laba),
                chip:`<span class="chip ${st.k}"><span class="dot"></span>${st.t}</span>` };
     });
     const urutMargin = siap.slice().sort((a,b) => b.h.margin - a.h.margin);
     const marginItems = urutMargin.map(r => {
       const st = statusMargin(r.h);
-      return { label:r.p.nama, emoji:r.p.emoji, value:r.h.margin, color:warnaStatus(st.k), text:pct(r.h.margin),
+      return { label:r.p.nama, emoji:r.p.emoji, lencana:lencanaValid(r.p, 14), value:r.h.margin, color:warnaStatus(st.k), text:pct(r.h.margin),
                chip:`<span class="chip ${st.k}"><span class="dot"></span>${st.t}</span>` };
     });
     grafik = `<div class="dua">
@@ -1087,7 +1151,7 @@ function renderRingkasan() {
       <tbody>${diisi.map(({p,h}) => {
         const st = statusMargin(h);
         return `<tr data-buka="${esc(p.id)}" style="cursor:pointer">
-          <td><span class="pname"><span class="em">${p.emoji || '🍽️'}</span><b>${esc(p.nama || 'Tanpa nama')}</b></span></td>
+          <td><span class="pname"><span class="em">${p.emoji || '🍽️'}</span><b>${esc(p.nama || 'Tanpa nama')}</b>${lencanaValid(p, 14)}</span></td>
           <td class="num">${h.porsi ? rp(h.hpp) : '—'}</td>
           <td class="num">${h.jual ? rp(h.jual) : '—'}</td>
           <td class="num">${h.lengkap ? rp(h.laba) : '—'}</td>
@@ -1129,7 +1193,21 @@ function renderRingkasan() {
    =================================================================== */
 function renderProduk() {
   const el = $('#v-produk');
-  if (S.editId && S.produk[S.editId]) { el.innerHTML = editorHTML(S.produk[S.editId]); return; }
+  if (S.editId && S.produk[S.editId]) {
+    const p = S.produk[S.editId];
+    el.innerHTML = editorHTML(p);
+    // Penguncian dilakukan pada elemennya, bukan sekadar disamarkan dengan CSS:
+    // kolom yang disabled benar-benar tidak bisa diketik, juga lewat papan ketik.
+    // "Mau bikin berapa" tetap hidup — itu kalkulator belanja, bukan bagian resep.
+    if (terkunci(p)) {
+      el.querySelectorAll('#editor [data-p]:not([data-p="rencana"]), #editor [data-f]')
+        .forEach(x => { x.disabled = true; });
+      el.querySelectorAll('#editor [data-aksi="tambah-bahan"], #editor [data-aksi="tambah-ops"],'
+        + ' #editor .del, #editor [data-pakai-harga]').forEach(x => x.remove());
+      const ed = el.querySelector('#editor'); if (ed) ed.classList.add('beku');
+    }
+    return;
+  }
   S.editId = null;
 
   const semua = daftarProduk();
@@ -1144,9 +1222,10 @@ function renderProduk() {
   const kartu = semua.map(p => {
     const h = hitung(p), st = statusMargin(h);
     const bagiHpp = h.jual > 0 ? clamp(h.hpp / h.jual * 100, 0, 100) : 100;
-    return `<button class="pcard" data-buka="${esc(p.id)}">
+    return `<button class="pcard${terkunci(p) ? ' terkunci' : ''}" data-buka="${esc(p.id)}">
       <span class="top"><span class="em">${p.emoji || '🍽️'}</span>
-        <span class="nm">${esc(p.nama || 'Tanpa nama')}</span></span>
+        <span class="nm">${esc(p.nama || 'Tanpa nama')}</span>
+        ${lencanaValid(p, 16)}</span>
       <span class="mini"><span>HPP / porsi</span><b>${h.porsi ? rp(h.hpp) : '—'}</b></span>
       <span class="mini"><span>Harga jual</span><b>${h.jual ? rp(h.jual) : '—'}</b></span>
       <span class="bar-mini">
@@ -1384,6 +1463,108 @@ function hasilHTML(p, h) {
   </div>` : ''; })()}`;
 }
 
+/* ===================================================================
+   KUNCI PRODUK
+
+   Produk yang sudah diperiksa dan benar bisa dikunci. Setelah terkunci,
+   resepnya tidak bisa diubah siapa pun yang membuka aplikasi — supaya angka
+   yang sudah benar tidak tergeser tanpa sengaja.
+
+   Yang dikunci adalah RESEPNYA, bukan harga bahan. Harga tetap mengalir dari
+   pustaka supaya "ubah harga sekali, semua produk ikut" tetap berlaku. Tapi
+   HPP pada saat dikunci ikut dicatat, jadi setiap pergeseran ketahuan dan
+   bisa ditunjukkan — tidak ada yang berubah diam-diam.
+   =================================================================== */
+const terkunci = p => !!(p && p.kunci && p.kunci.pada);
+
+/* Lencana terverifikasi: cakram bergelombang biru dengan centang putih.
+   Dipakai di mana pun produk terkunci disebut, supaya tanda "sudah terbukti
+   valid" bisa dikenali sekilas tanpa membaca. Kuning kalau harga bahannya
+   sudah bergeser sejak dikunci — tandanya masih ada, tapi perlu diperiksa. */
+const ROSET = 'M12.00 0.60 Q13.55 1.19 14.68 2.88 Q16.54 2.07 18.16 2.41 Q19.15 3.75 19.18 5.78 Q21.19 6.10 22.37 7.26 Q22.48 8.92 21.40 10.65 Q22.92 12.00 23.28 13.62 Q22.48 15.08 20.64 15.95 Q21.19 17.90 20.62 19.47 Q19.15 20.25 17.14 19.99 Q16.54 21.93 15.21 22.94 Q13.55 22.81 12.00 21.50 Q10.45 22.81 8.79 22.94 Q7.46 21.93 6.86 19.99 Q4.85 20.25 3.38 19.47 Q2.81 17.90 3.36 15.95 Q1.52 15.08 0.72 13.62 Q1.08 12.00 2.60 10.65 Q1.52 8.92 1.63 7.26 Q2.81 6.10 4.82 5.78 Q4.85 3.75 5.84 2.41 Q7.46 2.07 9.32 2.88 Q10.45 1.19 12.00 0.60Z';
+function lencanaValid(p, ukuran) {
+  if (!terkunci(p)) return '';
+  const g = geserKunci(p);
+  const u = ukuran || 15;
+  const jdl = g.beda
+    ? `Dikunci ${tglIndo(p.kunci.pada)} — harga bahan sudah berubah, perlu diperiksa ulang`
+    : `Terbukti valid · dikunci ${tglIndo(p.kunci.pada)}`;
+  return `<svg class="lencana${g.beda ? ' geser' : ''}" width="${u}" height="${u}" viewBox="0 0 24 24"
+     role="img" aria-label="${esc(jdl)}"><title>${esc(jdl)}</title>
+    <path d="${ROSET}" fill="currentColor"/>
+    <path d="M7.6 12.2l3 3 5.8-6.1" fill="none" stroke="#fff" stroke-width="2.3"
+          stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+}
+
+const BULAN_ID = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agu','Sep','Okt','Nov','Des'];
+function tglIndo(iso) {
+  const d = new Date(iso);
+  if (isNaN(d)) return '—';
+  return `${d.getDate()} ${BULAN_ID[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+/* Harga dasar tiap bahan pada saat dikunci — dipakai untuk menunjukkan
+   bahan mana persisnya yang bergerak, bukan sekadar "ada yang berubah". */
+function cuplikanHarga(p) {
+  const out = {};
+  (p.bahan || []).forEach(it => { const b = S.bahan[it.bahanId]; if (b) out[it.bahanId] = hargaDasar(b); });
+  return out;
+}
+
+function kunciProduk(p) {
+  p.kunci = { pada: new Date().toISOString(), hpp: hitung(p).hpp, bahan: cuplikanHarga(p) };
+  simpanProduk(p);
+}
+
+/* Apa saja yang bergeser sejak produk ini dikunci. */
+function geserKunci(p) {
+  if (!terkunci(p)) return null;
+  const k = p.kunci;
+  const hppKini = hitung(p).hpp;
+  const bahan = [];
+  Object.keys(k.bahan || {}).forEach(id => {
+    const b = S.bahan[id];
+    const dulu = num(k.bahan[id]);
+    if (!b) { bahan.push({ id, nama:'Bahan yang dihapus', dulu, kini:null }); return; }
+    const kini = hargaDasar(b);
+    if (Math.abs(kini - dulu) > 1e-4) bahan.push({ id, nama:b.nama || 'Tanpa nama', dulu, kini, satuan:b.satuan });
+  });
+  return { beda: bahan.length > 0 || Math.abs(hppKini - num(k.hpp)) > 0.5,
+           hppDulu: num(k.hpp), hppKini, bahan };
+}
+
+/* Boleh dikunci kalau memang ada yang bisa dinyatakan valid. */
+const bisaDikunci = p => num(p.porsi) > 0 && (p.bahan || []).length > 0;
+
+function kunciHTML(p) {
+  if (!terkunci(p)) return '';
+  const g = geserKunci(p);
+  const nama = String(p.nama || '').trim();
+  return `<div class="kunci-bar${g.beda ? ' geser' : ''}">
+    <div class="kb-baris">
+      <span class="kb-ikon">${g.beda ? '⚠️' : lencanaValid(p, 19)}</span>
+      <span class="kb-teks">
+        <b>${g.beda ? 'Terkunci, tapi angkanya sudah bergeser' : 'Data terkunci — sudah diperiksa dan dinyatakan valid'}</b>
+        <small>Dikunci ${tglIndo(p.kunci.pada)} · HPP saat itu ${rp(g.hppDulu)}${
+          g.beda ? ` · sekarang <b class="kb-kini">${rp(g.hppKini)}</b>` : ''}</small>
+        ${g.beda && g.bahan.length ? `<small class="kb-rinci">Harga bahan berubah: ${g.bahan.map(b =>
+          `<b>${esc(b.nama)}</b> ${b.kini === null ? 'dihapus dari pustaka'
+            : `${rpHalus(b.dulu)} → ${rpHalus(b.kini)} / ${esc(b.satuan)}`}`).join(' · ')}.
+          Periksa lagi, lalu kunci ulang.</small>` : ''}
+      </span>
+      ${S.bukaKunci === p.id ? '' : '<button class="kb-buka" data-aksi="minta-buka-kunci">Buka kunci</button>'}
+    </div>
+    ${S.bukaKunci === p.id ? `<div class="kb-tanya">
+      <span class="rh-teks"><b>Buka kunci ${nama ? `“${esc(nama)}”` : 'produk ini'}?</b>
+        Setelah dibuka, datanya bisa diubah lagi dan tanda “sudah terbukti valid” hilang.</span>
+      <span class="rh-aksi">
+        <button class="rh-batal" data-aksi="batal-buka-kunci">Batal</button>
+        <button class="rh-ya" data-aksi="jadi-buka-kunci">Buka</button>
+      </span>
+    </div>` : ''}
+  </div>`;
+}
+
 function editorHTML(p) {
   const h = hitung(p);
   const emojiOpt = EMOJI.map(e => `<option value="${e}"${e===p.emoji?' selected':''}>${e}</option>`).join('');
@@ -1391,8 +1572,15 @@ function editorHTML(p) {
   return `<div class="sec" id="editor">
     <div class="sec-head">
       <button class="btn quiet" data-aksi="tutup-editor">← Semua produk</button>
-      <button class="btn danger" data-aksi="hapus-produk">Hapus produk</button>
+      <span style="display:flex;gap:8px;align-items:center">
+        ${terkunci(p) ? '' : `<button class="btn ghost" data-aksi="kunci-produk"${
+          bisaDikunci(p) ? '' : ' disabled title="Isi jumlah porsi dan minimal satu bahan dulu"'
+          }>🔒 Kunci data</button>`}
+        ${terkunci(p) ? '' : '<button class="btn danger" data-aksi="hapus-produk">Hapus produk</button>'}
+      </span>
     </div>
+
+    ${kunciHTML(p)}
 
     <div class="card">
       <div style="display:grid;grid-template-columns:68px minmax(0,1fr);gap:12px;align-items:end">
@@ -1773,6 +1961,11 @@ document.addEventListener('click', e => {
   const aksi = t.closest('[data-aksi]');
   if (aksi) {
     const a = aksi.dataset.aksi;
+    // Aksi yang mengubah isi produk ditolak saat produknya terkunci.
+    // Tombolnya memang sudah dibuang saat menggambar, tapi aksinya tidak
+    // boleh mengandalkan itu — perubahan bisa datang dari jalan lain.
+    const UBAH = ['tambah-bahan','tambah-ops','bahan-baru-dari-produk','hapus-produk'];
+    if (UBAH.indexOf(a) !== -1 && terkunci(S.produk[S.editId])) return;
     if (a === 'tutup-sheet') tutupSheet();
     else if (a === 'export') unduhBackup();
     else if (a === 'import') { const f = $('#fileBackup'); if (f) f.click(); }
@@ -1783,6 +1976,12 @@ document.addEventListener('click', e => {
     else if (a === 'tutup-editor') { S.editId = null; render(); }
     else if (a === 'tambah-bahan') sheetPilihBahan();
     else if (a === 'tambah-ops') sheetPilihOps();
+  else if (a === 'kunci-produk') { const p = S.produk[S.editId];
+    if (p && !terkunci(p) && bisaDikunci(p)) { kunciProduk(p); S.bukaKunci = null; render(); } }
+  else if (a === 'minta-buka-kunci') { S.bukaKunci = S.editId; render(); }
+  else if (a === 'batal-buka-kunci') { S.bukaKunci = null; render(); }
+  else if (a === 'jadi-buka-kunci') { const p = S.produk[S.editId];
+    if (p) { delete p.kunci; simpanProduk(p); } S.bukaKunci = null; render(); }
     else if (a === 'hapus-produk') konfirmasi(aksi, 'Tekan lagi untuk hapus', () => {
       const id = S.editId; if (!id) return;
       delete S.produk[id]; tandaiHapus('produk', id); S.editId = null; render();
@@ -1813,6 +2012,7 @@ document.addEventListener('click', e => {
   if (buka) { S.tab = 'produk'; S.editId = buka.dataset.buka; render(); window.scrollTo({ top:0, behavior:'smooth' }); return; }
 
   const pakai = t.closest('[data-pakai-harga]');
+  if (pakai && terkunci(S.produk[S.editId])) return;
   if (pakai) {
     const p = S.produk[S.editId]; if (!p) return;
     p.hargaJual = num(pakai.dataset.pakaiHarga);
@@ -1820,10 +2020,12 @@ document.addEventListener('click', e => {
   }
 
   const hb = t.closest('[data-hapus-bahan]');
+  if (hb && terkunci(S.produk[S.editId])) return;
   if (hb) { const p = S.produk[S.editId]; if (!p) return;
     p.bahan.splice(+hb.dataset.hapusBahan, 1); simpanProduk(p); render(); return; }
 
   const ho = t.closest('[data-hapus-ops]');
+  if (ho && terkunci(S.produk[S.editId])) return;
   if (ho) { const p = S.produk[S.editId]; if (!p) return;
     p.ops.splice(+ho.dataset.hapusOps, 1); simpanProduk(p); render(); return; }
 
@@ -1876,6 +2078,9 @@ document.addEventListener('input', e => {
   }
   if (t.dataset.p) {                                    // kolom produk
     const p = S.produk[S.editId]; if (!p) return;
+    // Penjaga kedua: kolomnya memang sudah disabled, tapi penyimpanan data
+    // tidak boleh bergantung pada keadaan tampilan saja.
+    if (terkunci(p) && t.dataset.p !== 'rencana') return;
     p[t.dataset.p] = (t.dataset.p === 'nama' || t.dataset.p === 'emoji') ? t.value : num(t.value);
     simpanProduk(p);
     // "Mau bikin berapa" hanya mengubah daftar belanja, bukan HPP. Digambar
@@ -1885,12 +2090,14 @@ document.addEventListener('input', e => {
   }
   const baris = t.closest('[data-baris]');
   if (baris) { const p = S.produk[S.editId]; if (!p) return;
+    if (terkunci(p)) return;
     const it = p.bahan[+baris.dataset.baris]; if (!it) return;
     it[t.dataset.f] = t.dataset.f === 'satuan' ? t.value : num(t.value);
     simpanProduk(p); renderHasil(); return; }
 
   const ops = t.closest('[data-ops]');
   if (ops) { const p = S.produk[S.editId]; if (!p) return;
+    if (terkunci(p)) return;
     const o = p.ops[+ops.dataset.ops]; if (!o) return;
     o[t.dataset.f] = (t.dataset.f === 'nama' || t.dataset.f === 'mode') ? t.value : num(t.value);
     simpanProduk(p); renderHasil(); return; }
@@ -1930,7 +2137,7 @@ document.addEventListener('focusout', e => {
    =================================================================== */
 const KUNCI = 'w21-hpp-v1';
 /* Naikkan bersamaan dengan CACHE di sw.js setiap kali berkas ini berubah. */
-const VERSI = '15';
+const VERSI = '17';
 const BENIH = {
 "bahan": {
 "b-milo": {
