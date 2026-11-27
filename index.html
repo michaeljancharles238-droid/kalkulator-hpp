@@ -629,7 +629,7 @@ const SETEL_AWAL = { tarifListrik:1564, upahJam:12500, targetMargin:35, pembulat
 const S = {
   bahan: {}, produk: {}, setel: { ...SETEL_AWAL },
   tab: 'ringkasan', editId: null, boleh: true, siap: false, tundaRender: false,
-  cariBahan: '', cariProduk: '', hapusBahan: null, bukaKunci: null,
+  cariBahan: '', cariProduk: '', hapusBahan: null, bukaKunci: null, bahanBaru: [],
 };
 
 /* ===================================================================
@@ -1672,7 +1672,12 @@ function tanyaHapusHTML(b, pemakai) {
 
 function renderBahan() {
   const el = $('#v-bahan');
-  const semua = Object.values(S.bahan).sort((a,b) => String(a.nama).localeCompare(String(b.nama)));
+  // Baris yang baru dibuat di layar ini ditahan di atas menurut urutan
+  // pembuatannya; sisanya menurut abjad seperti biasa.
+  const baru = S.bahanBaru.filter(id => S.bahan[id]);
+  const semua = baru.map(id => S.bahan[id]).concat(
+    Object.values(S.bahan).filter(b => baru.indexOf(b.id) === -1)
+      .sort((a,b) => String(a.nama).localeCompare(String(b.nama))));
   // Siapa saja yang memakai tiap bahan — namanya diperlukan untuk menjelaskan
   // kenapa sebuah bahan tidak bisa dihapus, dan untuk melompat ke produknya.
   const pemakai = {};
@@ -1895,6 +1900,11 @@ function bahanBaru(fokus) {
   S.bahan[id] = b; simpanBahan(b);
   S.cariBahan = '';           // kalau tidak, baris baru yang masih tanpa nama langsung tersaring
   S.hapusBahan = null;        // jangan tinggalkan pertanyaan hapus menggantung di baris lain
+  // Daftar diurutkan menurut nama. Tanpa ini, baris yang baru dibuat melompat
+  // ke posisi abjadnya begitu namanya diketik — padahal isi dan harganya belum
+  // sempat diisi. Baris baru ditahan di atas selama masih di layar ini, lalu
+  // ikut urutan seperti biasa saat tab Bahan dibuka lagi.
+  S.bahanBaru = S.bahanBaru.concat([id]);
   if (fokus) { S.tab = 'bahan'; render();
     setTimeout(() => { const el = document.querySelector(`[data-bahan="${id}"] [data-f="nama"]`); if (el) el.focus(); }, 60); }
   return b;
@@ -1955,7 +1965,9 @@ document.addEventListener('click', e => {
   const t = e.target;
 
   const tab = t.closest('#tabs button');
-  if (tab) { S.tab = tab.dataset.tab; if (S.tab !== 'produk') S.editId = null; S.hapusBahan = null; render(); return; }
+  if (tab) { S.tab = tab.dataset.tab; if (S.tab !== 'produk') S.editId = null; S.hapusBahan = null;
+    S.bahanBaru = [];          // keluar dari layar ini = baris baru ikut urutan abjad lagi
+    render(); return; }
   if (t.closest('#btnSetel')) { sheetPengaturan(); return; }
 
   const aksi = t.closest('[data-aksi]');
@@ -2115,6 +2127,10 @@ document.addEventListener('input', e => {
 /* Pilihan satuan/mode mengubah bentuk baris, jadi perlu gambar ulang penuh. */
 document.addEventListener('change', e => {
   if (e.target.tagName !== 'SELECT') return;
+  // Satuan di Pustaka bahan tidak mengubah bentuk barisnya — cukup keterangan
+  // harganya yang disegarkan oleh penangan input. Menggambar ulang di sini
+  // akan memindahkan baris yang sedang diisi ke posisi abjadnya.
+  if (e.target.dataset.f === 'satuan' && e.target.closest('#v-bahan')) return;
   if (e.target.dataset.f === 'satuan' || e.target.dataset.f === 'mode' || e.target.dataset.s === 'pembulatan') render();
 });
 
@@ -2137,7 +2153,7 @@ document.addEventListener('focusout', e => {
    =================================================================== */
 const KUNCI = 'w21-hpp-v1';
 /* Naikkan bersamaan dengan CACHE di sw.js setiap kali berkas ini berubah. */
-const VERSI = '17';
+const VERSI = '18';
 const BENIH = {
 "bahan": {
 "b-milo": {
