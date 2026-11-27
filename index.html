@@ -252,6 +252,37 @@ select.inp { appearance:none; padding-right:26px;
 .row-i .amt-wrap { display:contents; }
 .row-i .del { width:34px; height:34px; border-radius:9px; display:grid; place-items:center; color:var(--tinta-3); }
 .row-i .del:hover { color:var(--kritis-tinta); background:rgba(208,59,59,.1); }
+/* Konfirmasi hapus: barisnya melebar ke bawah, tidak ada yang tertimpa.
+   Versi sebelumnya memakai balon mengambang, dan di baris sepadat ini balon
+   apa pun pasti menutupi salah satu kolom isian. */
+.row-i.mau-hapus { background:rgba(208,59,59,.09); outline:1.5px solid rgba(208,59,59,.55); outline-offset:-1.5px; }
+.row-i.mau-hapus .del { color:#fff; background:var(--kritis); }
+.row-hapus {
+  grid-column:1/-1; display:flex; align-items:center; justify-content:space-between;
+  gap:10px 14px; flex-wrap:wrap; margin-top:9px; padding-top:10px;
+  border-top:1px solid rgba(208,59,59,.28);
+}
+.rh-teks { font-size:11.5px; line-height:1.55; color:var(--tinta-2); min-width:0; flex:1 1 220px; }
+.rh-teks b { color:var(--kritis-tinta); font-weight:700; }
+.rh-aksi { display:flex; gap:8px; flex-shrink:0; margin-left:auto; }
+.rh-batal, .rh-ya { padding:8px 15px; border-radius:10px; font-size:12px; font-weight:650; }
+.rh-batal { color:var(--tinta-2); background:var(--kartu); border:1px solid var(--garis-kuat); }
+.rh-batal:hover { color:var(--tinta); }
+.rh-ya { color:#fff; background:var(--kritis); }
+.rh-ya:hover { filter:brightness(1.08); }
+.rh-batal:active, .rh-ya:active { transform:scale(.97); }
+/* Terkunci bukan bahaya — warnanya kuning peringatan, bukan merah. */
+.row-i.terkunci-hapus { background:rgba(250,178,25,.08); outline:1.5px solid rgba(250,178,25,.5); outline-offset:-1.5px; }
+.row-i.terkunci-hapus .del { color:var(--hati-tinta); background:rgba(250,178,25,.16); }
+.row-hapus.terkunci { border-top-color:rgba(250,178,25,.3); }
+.row-hapus.terkunci .rh-teks b { color:var(--hati-tinta); }
+.rh-produk { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.rh-produk button {
+  font-size:11.5px; font-weight:650; padding:5px 11px; border-radius:9px;
+  color:var(--tinta); background:var(--kartu); border:1px solid var(--garis-kuat);
+}
+.rh-produk button:hover { border-color:var(--aksen); color:var(--aksen-tinta); }
+.rh-produk button:active { transform:scale(.97); }
 .row-note { grid-column:1/-1; font-size:11.5px; color:var(--kritis-tinta); padding:0 2px; }
 @media (max-width:640px) {
   .row-h { display:none; }
@@ -260,6 +291,8 @@ select.inp { appearance:none; padding-right:26px;
   .row-i .cost { grid-column:1; text-align:left; display:flex; align-items:baseline; gap:7px; }
   .row-i .cost small { display:inline; }
   .row-i .del { grid-row:1; grid-column:2; }
+  .rh-aksi { flex:1 1 100%; }
+  .rh-batal, .rh-ya { flex:1; }
 }
 
 /* ===== NOTA / RINGKASAN BIAYA ===== */
@@ -541,7 +574,7 @@ const SETEL_AWAL = { tarifListrik:1564, upahJam:12500, targetMargin:35, pembulat
 const S = {
   bahan: {}, produk: {}, setel: { ...SETEL_AWAL },
   tab: 'ringkasan', editId: null, boleh: true, siap: false, tundaRender: false,
-  cariBahan: '', cariProduk: '',
+  cariBahan: '', cariProduk: '', hapusBahan: null,
 };
 
 /* ===================================================================
@@ -1411,29 +1444,75 @@ function editorHTML(p) {
 /* ===================================================================
    TAMPILAN: PUSTAKA BAHAN
    =================================================================== */
+/* Konfirmasi hapus ditaruh sebagai baris tambahan di bawah isian, bukan
+   sebagai balon mengambang. Balon apa pun di baris sepadat ini pasti menutupi
+   salah satu kolom; melebarkan barisnya tidak menutupi apa-apa.
+   Tombolnya juga dibuat eksplisit — "tekan lagi" menuntut orang menebak. */
+function tanyaHapusHTML(b, pemakai) {
+  const nama = String(b.nama || '').trim();
+  const sebut = nama ? `“${esc(nama)}”` : 'Bahan ini';
+
+  // Masih dipakai: menghapusnya akan merusak HPP produk lain tanpa ketahuan,
+  // jadi tombol Hapus memang tidak disediakan. Yang disediakan jalan keluarnya
+  // — nama produk pemakainya, bisa ditekan untuk langsung ke sana.
+  if (pemakai.length) {
+    return `<div class="row-hapus terkunci">
+      <span class="rh-teks">
+        <b>${sebut} tidak bisa dihapus</b> — masih dipakai di
+        ${pemakai.length === 1 ? 'produk ini' : `${pemakai.length} produk ini`}.
+        Keluarkan dulu dari resepnya, baru bahannya bisa dihapus.
+        <span class="rh-produk">${pemakai.map(p =>
+          `<button data-buka-produk="${esc(p.id)}">${esc(String(p.nama || '').trim() || 'Tanpa nama')}</button>`).join('')}</span>
+      </span>
+      <span class="rh-aksi">
+        <button class="rh-batal" data-batal-hapus>Tutup</button>
+      </span>
+    </div>`;
+  }
+
+  return `<div class="row-hapus">
+    <span class="rh-teks">
+      <b>Hapus ${nama ? `“${esc(nama)}”` : 'bahan ini'}?</b>
+      Belum dipakai di produk mana pun, jadi tidak ada HPP yang terpengaruh.
+    </span>
+    <span class="rh-aksi">
+      <button class="rh-batal" data-batal-hapus>Batal</button>
+      <button class="rh-ya" data-ya-hapus="${esc(b.id)}">Hapus</button>
+    </span>
+  </div>`;
+}
+
 function renderBahan() {
   const el = $('#v-bahan');
   const semua = Object.values(S.bahan).sort((a,b) => String(a.nama).localeCompare(String(b.nama)));
-  const dipakai = {};
-  Object.values(S.produk).forEach(p => (p.bahan||[]).forEach(it => { dipakai[it.bahanId] = (dipakai[it.bahanId]||0) + 1; }));
+  // Siapa saja yang memakai tiap bahan — namanya diperlukan untuk menjelaskan
+  // kenapa sebuah bahan tidak bisa dihapus, dan untuk melompat ke produknya.
+  const pemakai = {};
+  Object.values(S.produk).forEach(p => {
+    const sekali = new Set((p.bahan||[]).map(it => it.bahanId));
+    sekali.forEach(id => { (pemakai[id] = pemakai[id] || []).push(p); });
+  });
+  Object.values(pemakai).forEach(a => a.sort((x,y) => String(x.nama).localeCompare(String(y.nama))));
 
   const isi = semua.length ? `<div class="rows">
       <div class="row-h">
         <span>Nama bahan</span><span>Isi kemasan</span><span>Satuan</span><span>Harga kemasan</span><span></span></div>
-      ${semua.map(b => `<div class="row-i" data-bahan="${esc(b.id)}">
+      ${semua.map(b => `<div class="row-i${S.hapusBahan === b.id
+          ? ((pemakai[b.id]||[]).length ? ' terkunci-hapus' : ' mau-hapus') : ''}" data-bahan="${esc(b.id)}">
         <span class="field" style="min-width:0">
           <input class="inp" data-f="nama" value="${esc(b.nama||'')}" placeholder="Nama bahan" aria-label="Nama bahan">
           <div style="font-size:11px;color:var(--tinta-3);margin-top:4px">
-            ${rpHalus(hargaDasar(b))} / ${esc(b.satuan)} · dipakai di ${dipakai[b.id]||0} produk</div>
+            ${rpHalus(hargaDasar(b))} / ${esc(b.satuan)} · dipakai di ${(pemakai[b.id]||[]).length} produk</div>
         </span>
         <span class="amt-wrap">
           <input class="inp n" data-f="isi" inputmode="decimal" value="${esc(fmtIsi(num(b.isi)))}" aria-label="Isi kemasan" placeholder="isi">
           <select class="inp" data-f="satuan" aria-label="Satuan">${SAT_KEYS.map(k=>`<option value="${k}"${k===b.satuan?' selected':''}>${k}</option>`).join('')}</select>
           <input class="inp n" data-f="harga" inputmode="decimal" value="${esc(fmtIsi(num(b.harga),0))}" aria-label="Harga kemasan" placeholder="harga">
         </span>
-        <button class="del" data-hapus-pustaka="${esc(b.id)}" aria-label="Hapus bahan">
+        <button class="del" data-hapus-pustaka="${esc(b.id)}" aria-label="Hapus bahan"${S.hapusBahan === b.id ? ' aria-expanded="true"' : ''}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M5 7h14M9.5 7V5h5v2M7 7l1 13h8l1-13"/></svg>
         </button>
+        ${S.hapusBahan === b.id ? tanyaHapusHTML(b, pemakai[b.id] || []) : ''}
       </div>`).join('')}
     </div>` : `<div class="empty" style="padding:28px 0"><b>Pustaka masih kosong</b>
       Catat sekali harga kemasan tiap bahan yang kamu beli — cup, sendok, gula, es batu.<br>
@@ -1627,6 +1706,7 @@ function bahanBaru(fokus) {
   const b = { id, nama:'', isi:0, satuan:'gr', harga:0 };
   S.bahan[id] = b; simpanBahan(b);
   S.cariBahan = '';           // kalau tidak, baris baru yang masih tanpa nama langsung tersaring
+  S.hapusBahan = null;        // jangan tinggalkan pertanyaan hapus menggantung di baris lain
   if (fokus) { S.tab = 'bahan'; render();
     setTimeout(() => { const el = document.querySelector(`[data-bahan="${id}"] [data-f="nama"]`); if (el) el.focus(); }, 60); }
   return b;
@@ -1670,12 +1750,16 @@ function sheetPilihOps() {
 const tungguKonfirmasi = new WeakMap();
 function konfirmasi(btn, teks, fn) {
   if (tungguKonfirmasi.get(btn)) { clearTimeout(tungguKonfirmasi.get(btn)); tungguKonfirmasi.delete(btn); fn(); return; }
+
+  // Hanya dipakai tombol lebar ("Hapus produk"), yang muat memuat kalimatnya
+  // sendiri. Tombol ikon memakai baris konfirmasi — lihat tanyaHapusHTML().
   const asli = btn.innerHTML;
   btn.innerHTML = teks;
+  const pulihkan = () => { btn.innerHTML = asli; };
   btn.classList.add('danger');
   tungguKonfirmasi.set(btn, setTimeout(() => {
     tungguKonfirmasi.delete(btn);
-    if (btn.isConnected) { btn.innerHTML = asli; btn.classList.remove('danger'); }
+    if (btn.isConnected) { pulihkan(); btn.classList.remove('danger'); }
   }, 3500));
 }
 
@@ -1683,7 +1767,7 @@ document.addEventListener('click', e => {
   const t = e.target;
 
   const tab = t.closest('#tabs button');
-  if (tab) { S.tab = tab.dataset.tab; if (S.tab !== 'produk') S.editId = null; render(); return; }
+  if (tab) { S.tab = tab.dataset.tab; if (S.tab !== 'produk') S.editId = null; S.hapusBahan = null; render(); return; }
   if (t.closest('#btnSetel')) { sheetPengaturan(); return; }
 
   const aksi = t.closest('[data-aksi]');
@@ -1743,13 +1827,30 @@ document.addEventListener('click', e => {
   if (ho) { const p = S.produk[S.editId]; if (!p) return;
     p.ops.splice(+ho.dataset.hapusOps, 1); simpanProduk(p); render(); return; }
 
+  // Buka baris konfirmasi. Menekan tong sampah lain memindahkan pertanyaannya,
+  // menekan yang sedang terbuka menutupnya lagi.
   const hp = t.closest('[data-hapus-pustaka]');
   if (hp) {
     const id = hp.dataset.hapusPustaka;
-    const dipakai = Object.values(S.produk).filter(p => (p.bahan||[]).some(i => i.bahanId === id)).length;
-    konfirmasi(hp, dipakai ? `Dipakai di ${dipakai} produk — tekan lagi` : 'Tekan lagi untuk hapus', () => {
-      delete S.bahan[id]; tandaiHapus('bahan', id); render();
-    });
+    S.hapusBahan = (S.hapusBahan === id) ? null : id;
+    render();
+    return;
+  }
+  if (t.closest('[data-batal-hapus]')) { S.hapusBahan = null; render(); return; }
+  const bp = t.closest('[data-buka-produk]');
+  if (bp) { S.hapusBahan = null; S.tab = 'produk'; S.editId = bp.dataset.bukaProduk; render();
+    window.scrollTo({ top:0, behavior:'smooth' }); return; }
+
+  const yh = t.closest('[data-ya-hapus]');
+  if (yh) {
+    const id = yh.dataset.yaHapus;
+    // Penjaga kedua: tombolnya memang tidak digambar saat bahan masih dipakai,
+    // tapi aksi penghapusan tidak boleh bergantung pada tampilan saja.
+    const dipakai = Object.values(S.produk).some(p => (p.bahan||[]).some(i => i.bahanId === id));
+    if (dipakai) { render(); return; }
+    delete S.bahan[id]; tandaiHapus('bahan', id);
+    S.hapusBahan = null;
+    render();
     return;
   }
 });
@@ -1761,6 +1862,8 @@ document.addEventListener('input', e => {
 
   if (t.dataset.cari) {                                 // kotak pencarian
     S[t.dataset.cari] = t.value;
+    // Baris yang sedang menanyakan hapus bisa ikut tersaring — tutup dulu.
+    if (S.hapusBahan && t.dataset.cari === 'cariBahan') { S.hapusBahan = null; render(); return; }
     terapkanCari();
     return;
   }
@@ -1827,7 +1930,7 @@ document.addEventListener('focusout', e => {
    =================================================================== */
 const KUNCI = 'w21-hpp-v1';
 /* Naikkan bersamaan dengan CACHE di sw.js setiap kali berkas ini berubah. */
-const VERSI = '12';
+const VERSI = '15';
 const BENIH = {
 "bahan": {
 "b-milo": {
